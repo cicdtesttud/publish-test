@@ -169,8 +169,7 @@ jobs:
       - name: Tarball tsl
         run: |
           ls ${{ github.workspace }}/tsl/
-          tar -czf ${{ github.workspace }}/release/tsl.tar.gz -C ${{ github.workspace }}/tsl/ tsl-*/
-
+          tar -czf ${{ github.workspace }}/release/tsl.tar.gz -C ${{ github.workspace }}/tsl $(find . -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n')
       - name: Upload everything
         uses: actions/upload-artifact@v4
         if: always()
