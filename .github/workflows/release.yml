@@ -168,6 +168,7 @@ jobs:
 
       - name: Tarball tsl
         run: |
+          ls ${{ github.workspace }}/tsl/
           tar -czf ${{ github.workspace }}/release/tsl.tar.gz -C ${{ github.workspace }}/tsl/ tsl-*/
 
       - name: Upload everything
