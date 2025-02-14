@@ -1,0 +1,140 @@
+---
+file_description: "TODO."
+implementations:
+    - |
+      #ifndef TSL_FORCE_INLINE
+      #   if defined(__clang__) || defined(__GNUC__)
+      #       define TSL_FORCE_INLINE inline __attribute__((always_inline))
+      #   elif defined(_MSC_VER)
+      #       define TSL_FORCE_INLINE inline __forceinline
+      #   endif
+      #endif
+      #ifndef TSL_NO_NATIVE_SUPPORT_WARNING
+      #   define TSL_NO_NATIVE_SUPPORT_WARNING [[deprecated("This primitive is not supported by your hardware natively. Thus, a workaround is used.")]]
+      #endif
+      #ifndef TSL_DEP_TYPE
+      #   define TSL_DEP_TYPE(CONDITION, IFBRANCH, ELSEBRANCH) std::conditional_t<CONDITION, IFBRANCH, ELSEBRANCH>
+      #endif
+      #ifndef TSL_CVAL
+      #   define TSL_CVAL(type, value) std::integral_constant<type,value>{}
+      #endif
+      #define TSL_TO_STRING_HELPER(X) #X
+      #define TSL_TO_STRING(X) TSL_TO_STRING_HELPER(X)
+      #define TSL_DEFAULT_OR_PARAM(...) TSL_DEFAULT_OR_PARAM_(__VA_ARGS__, 2, 1, )
+      #define TSL_DEFAULT_OR_PARAM_(_1, _2, X, ...) X
+      #define TSL_CAT(A, B) TSL_CAT_(A, B)
+      #define TSL_CAT_(A, B) A##B
+      #define TSL_UNROLL_IMPL_ ,
+      #if defined (__INTEL_LLVM_COMPILER)
+      #   define TSL_UNROLL_2(_) _Pragma("unroll (1)")
+      #   define TSL_UNROLL_1(X) _Pragma(TSL_TO_STRING(unroll (X)))
+      #   define TSL_UNROLL(X) TSL_CAT(TSL_UNROLL_, TSL_DEFAULT_OR_PARAM(TSL_UNROLL_IMPL_##X))(X)
+      #elif defined(__clang__)
+      #   define TSL_UNROLL_2(_) _Pragma("unroll")
+      #   define TSL_UNROLL_1(X) _Pragma(TSL_TO_STRING(unroll(X)))
+      #   define TSL_UNROLL(X) TSL_CAT(TSL_UNROLL_, TSL_DEFAULT_OR_PARAM(TSL_UNROLL_IMPL_##X))(X)
+      #elif defined(__GNUC__) && !defined(__clang__)
+      #   if (__GNUC__ < 14)
+      #     pragma message("TSL_UNROLL is disabled. Apparently, GCC<14 does not support pragma unroll based on template parameters, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102855.")
+      #     define TSL_UNROLL(X)
+      #   else
+      #     define TSL_UNROLL_2(_) _Pragma(TSL_TO_STRING(GCC unroll (1)))
+      #     define TSL_UNROLL_1(X) _Pragma(TSL_TO_STRING(GCC unroll (X)))
+      #     define TSL_UNROLL(X) TSL_CAT(TSL_UNROLL_, TSL_DEFAULT_OR_PARAM(TSL_UNROLL_IMPL_##X))(X)
+      #   endif
+      #elif defined(_MSC_BUILD)
+      #pragma message( \
+          "Microsoft Visual C++ (MSVC) detected: Loop unrolling not supported!")
+      #   define TSL_UNROLL(...)
+      #else
+      #warning "Unknown compiler: Loop unrolling not supported!"
+      #   define TSL_UNROLL(...)
+      #endif
+    - |
+      template <typename T, class = void> 
+      struct tsl_functor_declared : std::false_type {};
+      template <typename T> 
+      struct tsl_functor_declared<T,decltype(void(sizeof(T)))> : std::true_type {};
+      template <typename T>
+      struct has_param_tuple_t {
+        template <typename C>
+        static std::true_type test(typename C::param_tuple_t*);
+        template <typename>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
+      };
+      template <typename T>
+      struct has_parameter_pack_type_t {
+        template <typename C>
+        static std::true_type test(typename C::gets_parameter_pack*);
+        template <typename>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
+      };
+      template <typename T, class = void>
+      struct gets_parameter_pack_t : public std::false_type {};
+      template <typename T>
+      struct gets_parameter_pack_t<T, std::enable_if_t<(has_parameter_pack_type_t<T>::value)>> : public T::gets_parameter_pack {};
+      template <typename T>
+      struct has_apply {
+        template <typename C>
+        static std::true_type test(decltype(&C::apply));
+        template <typename>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
+      };
+      template <typename T>
+      struct has_pack_apply {
+        template <typename C, typename... Args>
+        static auto test(int) -> decltype(C::template apply<Args...>, std::true_type{});
+        template <typename>
+        static std::false_type test(...);
+        static constexpr bool value = decltype(test<T>(0))::value;
+      };
+      template <typename T>
+      struct tsl_functor_defined {
+        static constexpr bool value = ((has_param_tuple_t<T>::value) || (gets_parameter_pack_t<T>::value)) && ((has_apply<T>::value) || (has_pack_apply<T>::value));
+      };
+    - |
+      template <typename T, class = void>
+      struct tsl_functor_available : std::false_type {};
+      template <typename T>
+      struct tsl_functor_available<
+        T,
+        std::enable_if_t<((tsl_functor_declared<T>::value) && (tsl_functor_defined<T>::value))>
+      > : std::true_type {};
+      template <typename A, typename B, class = void>
+      struct tsl_functor_pair_available : std::false_type {};
+      template <typename A, typename B>
+      struct tsl_functor_pair_available<
+        A, B,
+        std::enable_if_t<((tsl_functor_available<A>::value) && (tsl_functor_available<B>::value))>
+      > : public std::true_type {};
+    - |
+      template <typename First, typename Second, class = void>
+      struct tsl_primitive_redeclaration {
+        static constexpr bool value = false;
+      };
+      template <typename First, typename Second>
+      struct tsl_primitive_redeclaration<
+        First, Second,
+        std::enable_if_t<tsl_functor_pair_available<First, Second>::value>
+      > {
+        static constexpr bool value = std::is_same_v<typename First::param_tuple_t, typename Second::param_tuple_t>;
+      };
+      template <class... Functors>
+      struct tsl_primitives_redeclared;
+      template <class Functor>
+      struct tsl_primitives_redeclared<Functor> {
+        using is_ambiguous = std::false_type;
+      };
+      template <class FunctorA, class FunctorB, class... Functors>
+      struct tsl_primitives_redeclared<FunctorA, FunctorB, Functors...> {
+        using is_ambiguous = std::conditional_t<tsl_primitive_redeclaration<FunctorA, FunctorB>::value,
+          std::true_type,
+          typename tsl_primitives_redeclared<FunctorA, Functors...>::is_ambiguous>;
+      };
+      template <class... Functors>
+      inline constexpr bool tsl_primitives_redeclared_v = tsl_primitives_redeclared<Functors...>::is_ambiguous::value;
+
+...

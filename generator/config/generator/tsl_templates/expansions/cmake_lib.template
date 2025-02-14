@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION {{ minimum_version }})
+{% if verbose_make_files %}
+set(CMAKE_VERBOSE_MAKEFILE ON)
+{% else %}
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+{% endif %}
+add_library({{ tsl_lib_name }} INTERFACE)
+{% if use_concepts %}
+#set_target_properties({{ tsl_lib_name }} PROPERTIES CXX_STANDARD 20)
+target_compile_features({{ tsl_lib_name }} INTERFACE cxx_std_20)
+{% else %}
+target_compile_features({{ tsl_lib_name }} INTERFACE cxx_std_17)
+{% endif %}
+
+target_sources({{ tsl_lib_name }}
+{% for file in header_files %}
+   INTERFACE {{ file }}
+{% endfor %}
+)
+target_include_directories({{ tsl_lib_name }} INTERFACE {{ library_root_path }})
+if (NOT DEFINED RUNS_IN_EMULATOR)
+  target_compile_options({{ tsl_lib_name }} INTERFACE {{ tsl_hw_compile_flags_options }})
+endif()
+
+target_compile_options({{ tsl_lib_name }} INTERFACE {{ tsl_target_compile_options }})# -Wfatal-errors)
+
+{% if use_concepts %}
+target_compile_definitions({{ tsl_lib_name }} INTERFACE TSL_USE_CONCEPTS)
+{% endif %}
+if (DEFINED TSL_LINK_OPTIONS)
+   target_link_options({{ tsl_lib_name}} INTERFACE ${TSL_LINK_OPTIONS})
+endif()
+{% for dir in subdirectories %}
+add_subdirectory({{ dir }})
+{% endfor %}
+
+# Add subdirectories containing supplementary libraries
+{% for supplementary_lib in tsl_required_supplementary_libraries %}
+add_subdirectory({{ supplementary_lib["cmakelists_path"] }})
+{% endfor %}
+# Add custom targets for supplementary libraries
+{% for supplementary_lib in tsl_required_supplementary_libraries %}
+add_dependencies({{ tsl_lib_name}} {{ supplementary_lib["name"] }})
+{% endfor %}
+# Add includes if present
+{% for supplementary_lib in tsl_required_supplementary_libraries %}
+target_include_directories({{ tsl_lib_name}} INTERFACE {{ supplementary_lib["include_path"] }})
+{% endfor %}
+{% for include_path in tsl_additional_include_paths %}
+target_include_directories({{ tsl_lib_name }} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/{{ include_path }}> $<INSTALL_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/{{ include_path }}> )
+{% endfor %}

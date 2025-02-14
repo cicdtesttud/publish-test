@@ -1,0 +1,3016 @@
+---
+name: "binary"
+description: "Bit manipulation primitives."
+...
+---
+primitive_name: "binary_and"
+brief_description: "Binary ANDs two vector registers."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "a"
+    description: "First vector."
+  - ctype: "const typename Vec::register_type"
+    name: "b"
+    description: "Second vector."
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Vector containing result of the binary AND."
+testing: #optional
+  - test_name: "and_as_compare"
+    requires: ["storeu", "loadu"]
+    includes: ["<cstddef>"]
+    implementation: |
+      //a & a == a ?
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false};
+      bool allOk = true;
+      auto reference_data_ptr = test_helper.data_ref();
+      auto reference_result_ptr = test_helper.result_ref();
+      auto test_data_ptr = test_helper.data_target();
+      auto test_result_ptr = test_helper.result_target();
+      for(std::size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+          std::size_t tester_idx = 0;
+          for(size_t j = i; j < i + Vec::vector_element_count(); ++j) {
+            reference_result_ptr[tester_idx++] = reference_data_ptr[j];
+          }
+          auto vec1 = loadu<Vec>( &test_data_ptr[i] );
+          auto vec2 = loadu<Vec>( &test_data_ptr[i] );
+          auto result = binary_and<Vec>( vec1, vec2 );
+          storeu<Vec>( test_result_ptr, result );
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+      }
+      return allOk;
+definitions:
+#INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: "return _mm512_and_si512(a, b);"
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx512f", "avx512dq"]
+    implementation: "return _mm512_and_{{ intrin_tp_full[ctype] }}(a, b);"
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx512f"]
+    is_native: False
+    implementation: "return _mm512_castsi512_{{ intrin_tp_full[ctype] }}(_mm512_and_si512(_mm512_cast{{ intrin_tp_full[ctype] }}_si512(a), _mm512_cast{{ intrin_tp_full[ctype] }}_si512(b)));"
+#Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: "return _mm256_and_si256(a, b);"
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    is_native: False
+    implementation: "return _mm256_castpd_si256(_mm256_and_pd(_mm256_castsi256_pd(a), _mm256_castsi256_pd(b)));"
+  - target_extension: "avx2"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx"]
+    implementation: "return _mm256_and_{{ intrin_tp_full[ctype] }}(a,b);"
+#Intel - SSE
+  - target_extension: "sse"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    implementation: "return _mm_and_si128(a, b);"
+  - target_extension: "sse"
+    ctype: ["float"]
+    lscpu_flags: ["sse"]
+    implementation: "return _mm_and_ps(a, b);"
+  - target_extension: "sse"
+    ctype: [ "double" ]
+    lscpu_flags: [ "sse2" ]
+    implementation: "return _mm_and_pd(a, b);"
+#ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: [ 'neon' ]
+    implementation: "return vandq_{{ intrin_tp_full[ctype] }}( a, b );"
+  - target_extension: "neon"
+    ctype: ["float", "double"]
+    lscpu_flags: ['neon']
+    note: "is it a good idea to support bitmanipulation for floats and doubles?"
+    implementation: |
+      return
+        vreinterpretq_{{ intrin_tp_full[ctype] }}_u{{ intrin_tp[ctype][1] }}(
+          vandq_u{{ intrin_tp[ctype][1] }}(
+            vreinterpretq_u{{ intrin_tp[ctype][1] }}_{{ intrin_tp_full[ctype] }}(a),
+            vreinterpretq_u{{ intrin_tp[ctype][1] }}_{{ intrin_tp_full[ctype] }}(b)
+          )
+        );
+#SCALAR
+  - target_extension: "scalar"
+    ctype: [ "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: "return a & b;"
+  - target_extension: "scalar"
+    ctype: [ "float" ]
+    lscpu_flags: []
+    is_native: False
+    specialization_comment: "Benchmark what to use. Current implementation or: uint32_t c = (*((uint32_t *)&a) & *((uint32_t *)&b)); return *((float *)&c);"
+    implementation: |
+      float c = 0.0;
+      auto a1 = reinterpret_cast<const unsigned char *>(&a);
+      auto b1 = reinterpret_cast<const unsigned char *>(&b);
+      auto c1 = reinterpret_cast<unsigned char *>(&c);
+      c1[0] = a1[0] & b1[0];
+      c1[1] = a1[1] & b1[1];
+      c1[2] = a1[2] & b1[2];
+      c1[3] = a1[3] & b1[3];
+      return c;
+  - target_extension: "scalar"
+    ctype: ["double"]
+    lscpu_flags: []
+    is_native: False
+    implementation: |
+      double c = 0.0;
+      auto a1 = reinterpret_cast<const unsigned char *>(&a);
+      auto b1 = reinterpret_cast<const unsigned char *>(&b);
+      auto c1 = reinterpret_cast<unsigned char *>(&c);
+      c1[0] = a1[0] & b1[0];
+      c1[1] = a1[1] & b1[1];
+      c1[2] = a1[2] & b1[2];
+      c1[3] = a1[3] & b1[3];
+      c1[4] = a1[4] & b1[4];
+      c1[5] = a1[5] & b1[5];
+      c1[6] = a1[6] & b1[6];
+      c1[7] = a1[7] & b1[7];
+      return c;
+    specialization_comment: "Benchmark what to use. Current implementation or: uint64_t c = (*((uint64_t *)&a) & *((uint64_t *)&b)); return *((double *)&c);"
+#INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = a[i] & b[i];
+      }
+      return result;
+...
+---
+primitive_name: "binary_or"
+brief_description: "Binary ORs two vector registers."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "a"
+    description: "First vector."
+  - ctype: "const typename Vec::register_type"
+    name: "b"
+    description: "Second vector."
+returns:
+   ctype: "typename Vec::register_type"
+   description: "Vector containing result of the binary AND."
+testing:
+  - requires: ["loadu"]
+    includes: ["<cstddef>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count * 2, Vec::vector_element_count(), false};
+      bool allOk = true;
+      auto reference_data_ptr = test_helper.data_ref();
+      auto reference_result_ptr = test_helper.result_ref();
+      for(std::size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+          for(size_t j = 0; j < Vec::vector_element_count(); ++j) {
+              uint8_t* a = (uint8_t*)&reference_data_ptr[i + j];
+              uint8_t* b = (uint8_t*)&reference_data_ptr[element_count + i + j];
+              uint8_t* res = (uint8_t*)&reference_result_ptr[j];
+              for (int k = 0; k < sizeof(T); k++) res[k] = a[k] | b[k];
+          }
+          auto vec1 = loadu<Vec>(&reference_data_ptr[i]);
+          auto vec2 = loadu<Vec>(&reference_data_ptr[element_count + i]);
+          auto result = binary_or<Vec>(vec1, vec2);
+          allOk &= test_helper.validate_simd_register(result);
+      }
+      return allOk;
+definitions:
+#INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: "return _mm512_or_si512(a, b);"
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx512f", "avx512dq"]
+    implementation: "return _mm512_or_{{ intrin_tp_full[ctype] }}(a, b);"
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx512f"]
+    is_native: False
+    implementation: "return _mm512_castsi512_{{ intrin_tp_full[ctype] }}(_mm512_or_si512(_mm512_cast{{ intrin_tp_full[ctype] }}_si512(a), _mm512_cast{{ intrin_tp_full[ctype] }}_si512(b)));"
+#Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: "return _mm256_or_si256(a, b);"
+  - target_extension: "avx2"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx"]
+    implementation: "return _mm256_or_{{ intrin_tp_full[ctype] }}(a, b);"
+#Intel - SSE
+  - target_extension: "sse"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    implementation: "return _mm_or_si128(a, b);"
+  - target_extension: "sse"
+    ctype: ["float"]
+    lscpu_flags: ["sse2"]
+    implementation: "return _mm_or_{{ intrin_tp_full[ctype] }}(a, b);"
+  - target_extension: "sse"
+    ctype: ["double"]
+    lscpu_flags: ["sse2"]
+    implementation: "return _mm_or_{{ intrin_tp_full[ctype] }}(a, b);"
+#ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: [ 'neon' ]
+    implementation: "return vorrq_{{ intrin_tp_full[ctype] }}( a, b );"
+  - target_extension: "neon"
+    ctype: ["float", "double"]
+    lscpu_flags: ['neon']
+    implementation: |
+      return
+        vreinterpretq_{{ intrin_tp_full[ctype] }}_u{{ intrin_tp[ctype][1] }}(
+          vorrq_u{{ intrin_tp[ctype][1] }}(
+            vreinterpretq_u{{ intrin_tp[ctype][1] }}_{{ intrin_tp_full[ctype] }}(a),
+            vreinterpretq_u{{ intrin_tp[ctype][1] }}_{{ intrin_tp_full[ctype] }}(b)
+          )
+        );
+#SCALAR
+  - target_extension: "scalar"
+    ctype: [ "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: "return a | b;"
+  - target_extension: "scalar"
+    ctype: ["float"]
+    lscpu_flags: []
+    is_native: False
+    implementation: |
+      uint32_t r = *(reinterpret_cast<uint32_t const*>(&a)) | *(reinterpret_cast<uint32_t const *>(&b));
+      return *reinterpret_cast<float const *>(&r);
+  - target_extension: "scalar"
+    ctype: ["double"]
+    lscpu_flags: []
+    is_native: False
+    implementation: |
+      uint64_t r = *(reinterpret_cast<uint64_t const *>(&a)) | *(reinterpret_cast<uint64_t const *>(&b));
+      return *reinterpret_cast<double const*>(&r);
+#INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = a[i] | b[i];
+      }
+      return result;
+...
+---
+primitive_name: "binary_xor"
+brief_description: "Binary XORs two vector registers."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "a"
+    description: "First vector."
+  - ctype: "const typename Vec::register_type"
+    name: "b"
+    description: "Second vector."
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Vector containing result of the binary XOR."
+testing: #optional
+  - test_name: "xor_as_compare"
+    requires: ["storeu", "loadu"]
+    includes: ["<cstddef>"]
+    implementation: |
+      //a ^ a == 0 ?
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false};
+      bool allOk = true;
+      auto reference_data_ptr = test_helper.data_ref();
+      auto reference_result_ptr = test_helper.result_ref();
+      auto test_data_ptr = test_helper.data_target();
+      auto test_result_ptr = test_helper.result_target();
+      for(std::size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        std::size_t tester_idx = 0;
+        for(size_t j = i; j < i + Vec::vector_element_count(); ++j) {
+            reference_result_ptr[tester_idx++] = 0;
+        }
+        auto vec1 = loadu<Vec>(&test_data_ptr[i]);
+        auto vec2 = loadu<Vec>(&test_data_ptr[i]);
+        auto result = binary_xor<Vec>(vec1, vec2);
+        storeu<Vec>(test_result_ptr, result);
+        test_helper.synchronize();
+        allOk &= test_helper.validate();
+      }
+      return allOk;
+definitions:
+  #INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: "return _mm512_xor_si512(a, b);"
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx512f", "avx512dq"]
+    implementation: "return _mm512_xor_{{ intrin_tp_full[ctype] }}(a, b);"
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx512f"]
+    is_native: False
+    implementation: |
+      return _mm512_castsi512_{{ intrin_tp_full[ctype] }}(
+        _mm512_xor_si512(
+          _mm512_cast{{ intrin_tp_full[ctype] }}_si512(a), _mm512_cast{{ intrin_tp_full[ctype] }}_si512(b)));
+  #Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: "return _mm256_xor_si256(a, b);"
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    is_native: False
+    implementation: "return _mm256_castpd_si256(_mm256_xor_pd(_mm256_castsi256_pd(a),_mm256_castsi256_pd(b)));"
+  - target_extension: "avx2"
+    ctype: ["float", "double"]
+    lscpu_flags: ["avx"]
+    implementation: "return _mm256_xor_{{ intrin_tp_full[ctype] }}(a,b);"
+  #Intel - SSE
+  - target_extension: "sse"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    implementation: "return _mm_xor_si128(a, b);"
+  - target_extension: "sse"
+    ctype: ["float"]
+    lscpu_flags: ["sse"]
+    implementation: "return _mm_xor_ps(a, b);"
+  - target_extension: "sse"
+    ctype: [ "double" ]
+    lscpu_flags: [ "sse2" ]
+    implementation: "return _mm_xor_pd(a, b);"
+  #ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: [ 'neon' ]
+    implementation: "return veorq_{{ intrin_tp_full[ctype] }}( a, b );"
+  - target_extension: "neon"
+    ctype: ["float", "double"]
+    lscpu_flags: ['neon']
+    note: "is it a good idea to support bitmanipulation for floats and doubles?"
+    implementation: |
+      return vreinterpretq_{{ intrin_tp_full[ctype] }}_u{{ intrin_tp[ctype][1] }}(
+        veorq_u{{ intrin_tp[ctype][1] }}(
+          vreinterpretq_u{{ intrin_tp[ctype][1] }}_{{ intrin_tp_full[ctype] }}(a),
+          vreinterpretq_u{{ intrin_tp[ctype][1] }}_{{ intrin_tp_full[ctype] }}(b)));
+  #SCALAR
+  - target_extension: "scalar"
+    ctype: [ "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: "return a ^ b;"
+  - target_extension: "scalar"
+    ctype: [ "float" ]
+    lscpu_flags: []
+    is_native: False
+    specialization_comment: "Benchmark what to use. Current implementation or: uint32_t c = (*((uint32_t *)&a) ^ *((uint32_t *)&b)); return *((float *)&c);"
+    implementation: |
+      float c = 0.0;
+      auto a1 = reinterpret_cast<const unsigned char *>(&a);
+      auto b1 = reinterpret_cast<const unsigned char *>(&b);
+      auto c1 = reinterpret_cast<unsigned char *>(&c);
+      c1[0] = a1[0] ^ b1[0];
+      c1[1] = a1[1] ^ b1[1];
+      c1[2] = a1[2] ^ b1[2];
+      c1[3] = a1[3] ^ b1[3];
+      return c;
+  - target_extension: "scalar"
+    ctype: ["double"]
+    lscpu_flags: []
+    is_native: False
+    implementation: |
+      double c = 0.0;
+      auto a1 = reinterpret_cast<const unsigned char *>(&a);
+      auto b1 = reinterpret_cast<const unsigned char *>(&b);
+      auto c1 = reinterpret_cast<unsigned char *>(&c);
+      c1[0] = a1[0] ^ b1[0];
+      c1[1] = a1[1] ^ b1[1];
+      c1[2] = a1[2] ^ b1[2];
+      c1[3] = a1[3] ^ b1[3];
+      c1[4] = a1[4] ^ b1[4];
+      c1[5] = a1[5] ^ b1[5];
+      c1[6] = a1[6] ^ b1[6];
+      c1[7] = a1[7] ^ b1[7];
+      return c;
+    specialization_comment: "Benchmark what to use. Current implementation or: uint64_t c = (*((uint64_t *)&a) ^ *((uint64_t *)&b)); return *((double *)&c);"
+  #INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = a[i] ^ b[i];
+      }
+      return result;
+...
+---
+primitive_name: "shift_left"
+brief_description: "Arithmetic shift of data to the left by n bits."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "Data."
+  - ctype: "const unsigned int"
+    name: "shift"
+    description: "Amount of bits, data should be shifted."
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Vector containing result of the right shift."
+definitions:
+  #INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint32_t", "uint64_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: "return _mm512_slli_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      return _mm512_and_si512(
+        _mm512_slli_epi32(data, shift),
+        _mm512_set1_epi{{ intrin_tp[ctype][1] }}((-1ul)<<shift)
+      );
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f", "avx512bw"]
+    implementation: "return _mm512_slli_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx512f", "avx512bw"]
+    implementation: |
+      return _mm512_and_si512(
+        _mm512_slli_epi16(data, shift),
+        _mm512_set1_epi8((-1ul)<<shift)
+      );
+  #Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "uint32_t", "uint64_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: "return _mm256_slli_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      return _mm256_and_si256(
+        _mm256_slli_epi16(data, shift),
+        _mm256_set1_epi8((-1ul)<<shift)
+      );
+  #Intel - SSE
+  - target_extension: "sse"
+    ctype: ["uint16_t", "uint32_t", "uint64_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    implementation: "return _mm_slli_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "sse"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["sse2"]
+    implementation: |
+      return _mm_and_si128(
+        _mm_slli_epi16(data, shift),
+        _mm_set1_epi8((-1ul)<<shift)
+      );
+  #ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: [ 'neon' ]
+    implementation: "return vshlq_{{ intrin_tp_full[ctype] }}(data, vdupq_n_s{{ intrin_tp[ctype][1] }}(shift));"
+  - target_extension: "neon"
+    ctype: ["float", "double"]
+    lscpu_flags: ['neon']
+    note: "is it a good idea to support bitmanipulation for floats and doubles?"
+    implementation: return vcvtq_{{intrin_tp_full[ctype]}}_u{{intrin_tp[ctype][1]}}(vshlq_u{{intrin_tp[ctype][1]}}(vcvtq_u{{intrin_tp[ctype][1]}}_{{intrin_tp_full[ctype]}}(data), vdupq_n_s{{ intrin_tp[ctype][1] }}(shift)));
+  #SCALAR
+  - target_extension: "scalar"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: |
+      return data << shift;
+    #"return (shift >= sizeof(typename Vec::register_type) * 8) ? 0 : data << shift;"
+  #INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = data[i] << (typename Vec::base_type) shift;
+      }
+      return result;
+testing:
+  - requires: ["storeu", "loadu"]
+    includes: ["<cstddef>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      using OffsetT = typename Vec::offset_base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false, testing::alternate_init<T>};
+      bool allOk = true;
+      auto ref_data = test_helper.data_ref();
+      auto expected_result = test_helper.result_ref();
+
+      auto test_data = test_helper.data_target();
+      auto test_result = test_helper.result_target();
+      for (size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        for (unsigned shift = 0; shift < sizeof(typename Vec::base_type)*CHAR_BIT; ++shift) {
+          for (size_t j = 0; j < Vec::vector_element_count(); ++j) {
+            expected_result[j] = ((OffsetT)ref_data[i+j]) << shift;
+          }
+          auto vec = loadu<Vec>(&test_data[i]);
+          storeu<Vec>(test_result, shift_left<Vec>(vec, (typename Vec::base_type)shift));
+          test_helper.synchronize();
+          auto res = test_helper.validate();
+          allOk &= res;
+        }
+      }
+      return allOk;
+...
+---
+primitive_name: "shift_left"
+functor_name: "shift_left_vector"
+brief_description: "Shifts data to left by n bits (shifting in 0)."
+detailed_description: |
+  This function shifts data to the left by n bits. The bits that are shifted out are lost and the bits that are shifted in are 0.
+  The shift amount is specified by the shift parameter. The shift amount must be in the range [0, sizeof(typename Vec::base_type) * CHAR_BIT).
+  If the shift amount is greater than or equal to sizeof(typename Vec::base_type) * CHAR_BIT, the result is 0.
+  Every lane within the vector is shifted by the amount specified in the corresponding lane of the shift register.
+  If all lanes should be shifted by the same amount, consider using another function that takes a scalar shift parameter (as this function will add some overhead).
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "Data."
+  - ctype: "const typename Vec::register_type"
+    name: "shift"
+    description: "Amount of bits, data should be shifted."
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Vector containing result of the left shift."
+definitions:
+  #INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint32_t", "uint64_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: "return _mm512_sllv_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      auto const mask  = _mm512_set1_epi32(0xFFFF);
+      auto const mask1 = _mm512_slli_epi32(mask, 16);
+      auto const r0 =
+        _mm512_and_si512(
+          _mm512_sllv_epi32(
+            data,
+            _mm512_and_si512(shift, mask)
+          ),
+          mask
+        );
+      auto const r1 =
+        _mm512_and_si512(
+          _mm512_sllv_epi32(
+            _mm512_and_si512(data, mask1),
+            _mm512_srli_epi32(_mm512_and_si512(shift, mask1), 16)
+          ),
+          mask1
+        );
+      return _mm512_or_si512(r0, r1);
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      auto const mask  = _mm512_set1_epi32(0xFF);
+      auto const mask1 = _mm512_slli_epi32(mask, 8);
+      auto const mask2 = _mm512_slli_epi32(mask, 16);
+      auto const mask3 = _mm512_slli_epi32(mask, 24);
+      auto const r0 =
+        _mm512_and_si512(
+          _mm512_sllv_epi32(
+            data,
+            _mm512_and_si512(shift, mask)
+          ),
+          mask
+        );
+      auto const r1 =
+        _mm512_and_si512(
+          _mm512_sllv_epi32(
+            _mm512_and_si512(data, mask1),
+            _mm512_srli_epi32(_mm512_and_si512(shift, mask1), 8)
+          ),
+          mask1
+        );
+      auto const r2 =
+        _mm512_and_si512(
+          _mm512_sllv_epi32(
+            _mm512_and_si512(data, mask2),
+            _mm512_srli_epi32(_mm512_and_si512(shift, mask2), 16)
+          ),
+          mask2
+        );
+      auto const r3 =
+        _mm512_and_si512(
+          _mm512_sllv_epi32(
+            _mm512_and_si512(data, mask3),
+            _mm512_srli_epi32(_mm512_and_si512(shift, mask3), 24)
+          ),
+          mask3
+        );
+      return _mm512_or_si512(_mm512_or_si512(r0, r1), _mm512_or_si512(r2, r3));
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f", "avx512bw"]
+    implementation: "return _mm512_sllv_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx512f", "avx512bw"]
+    implementation: |
+      auto const mask  = _mm512_set1_epi16(0xFF);
+      auto const mask1 = _mm512_slli_epi16(mask, 8);
+      auto const r0 =
+        _mm512_and_si512(
+          _mm512_sllv_epi16(
+            data,
+            _mm512_and_si512(shift, mask)
+          ),
+          mask
+        );
+      auto const r1 =
+        _mm512_and_si512(
+          _mm512_sllv_epi16(
+            _mm512_and_si512(data, mask1),
+            _mm512_srli_epi16(_mm512_and_si512(shift, mask1), 8)
+          ),
+          mask1
+        );
+      return _mm512_or_si512(r0, r1);
+  #Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint32_t", "uint64_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: "return _mm256_sllv_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx2"]
+    specialization_comment: |
+      AVX2 does not provide a native support for lane-independent shift on 16-bit integers.
+      To work around this limitation, we do the following:
+      1. We create a mask register, where 16 bits are set to 1 and the following 16 bits are set to 0. This mask will be used for the even lanes.
+      2. We shift the mask register by 16 bits to the left. This mask will be used for the odd lanes.
+      3. We create two registers, r0 and r1, where we store the results of the shift operation for the even and odd lanes, respectively.
+    implementation: |
+      auto const mask  = _mm256_set1_epi32(0xFFFF);
+      auto const mask1 = _mm256_slli_epi32(mask, 16);
+      auto const r0 =
+        _mm256_and_si256(
+          _mm256_sllv_epi32(
+            data,
+            _mm256_and_si256(shift, mask)
+          ),
+          mask
+        );
+      auto const r1 =
+        _mm256_and_si256(
+          _mm256_sllv_epi32(
+            _mm256_and_si256(data, mask1),
+            _mm256_srli_epi32(_mm256_and_si256(shift, mask1), 16)
+          ),
+          mask1
+        );
+      return _mm256_or_si256(r0, r1);
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      auto const mask  = _mm256_set1_epi32(0xFF);
+      auto const mask1 = _mm256_slli_epi32(mask, 8);
+      auto const mask2 = _mm256_slli_epi32(mask, 16);
+      auto const mask3 = _mm256_slli_epi32(mask, 24);
+      auto const r0 =
+        _mm256_and_si256(
+          _mm256_sllv_epi32(
+            data,
+            _mm256_and_si256(shift, mask)
+          ),
+          mask
+        );
+      auto const r1 =
+        _mm256_and_si256(
+          _mm256_sllv_epi32(
+            _mm256_and_si256(data, mask1),
+            _mm256_srli_epi32(_mm256_and_si256(shift, mask1), 8)
+          ),
+          mask1
+        );
+      auto const r2 =
+        _mm256_and_si256(
+          _mm256_sllv_epi32(
+            _mm256_and_si256(data, mask2),
+            _mm256_srli_epi32(_mm256_and_si256(shift, mask2), 16)
+          ),
+          mask2
+        );
+      auto const r3 =
+        _mm256_and_si256(
+          _mm256_sllv_epi32(
+            _mm256_and_si256(data, mask3),
+            _mm256_srli_epi32(_mm256_and_si256(shift, mask3), 24)
+          ),
+          mask3
+        );
+      return _mm256_or_si256(_mm256_or_si256(r0, r1), _mm256_or_si256(r2, r3));
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f", "avx512bw", "avx512vl"]
+    implementation: "return _mm256_sllv_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  #Intel - SSE
+  - target_extension: "sse"
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    specialization_comment: |
+      SSE does not provide a native support for lane-independent shift.
+      To work around this limitation, we could mask out the lanes and use PSLLW.
+      However, this seems like a bad idea, as the actual processing would be done scalarly.
+      Consequently, we transfer the data to the stack, process it scalarly and move the result back to the register.
+    implementation: |
+      auto __attribute__((__aligned__(Vec::vector_alignment()))) data_arr = tsl::to_array<Vec>(data);
+      auto __attribute__((__aligned__(Vec::vector_alignment()))) shift_arr = tsl::to_array<Vec>(shift);
+      for (size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        data_arr[i] <<= shift_arr[i];
+      }
+      return tsl::load<Vec>(data_arr.data());
+      /*auto const zero = _mm_setzero_si128();
+      auto const mask0 = _mm_insert_epi64(zero, 0, 0xFFFFFFFFFFFFFFFF);
+      auto const mask1 = _mm_slli_si128(mask0, 8);
+      auto const shift1 = _mm_srli_si128(shift, 8);
+      auto const r0 =
+        _mm_and_si128(
+          _mm_sll_epi64(data, shift),
+          mask0
+        );
+      auto const r1 =
+        _mm_and_si128(
+          _mm_sll_epi64(data, shift1),
+          mask1
+        );
+      return _mm_or_si128(r0, r1);*/
+  - target_extension: "sse"
+    ctype: ["uint32_t", "uint64_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse2", "avx2"]
+    implementation: "return _mm_sllv_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  - target_extension: "sse"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["sse2", "avx512bw", "avx512vl"]
+    implementation: "return _mm_sllv_epi{{ intrin_tp[ctype][1] }}(data, shift);"
+  #ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: [ 'neon' ]
+    implementation: "return vshlq_{{ intrin_tp_full[ctype] }}(data, shift);"
+  #SCALAR
+  - target_extension: "scalar"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: |
+      return data << shift;
+    # "return (shift >= sizeof(typename Vec::register_type) * 8) ? 0 : data << shift;"
+  #FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = data[i] << shift[i];
+      }
+      return result;
+testing:
+  - requires: ["storeu", "loadu", "set1"]
+    includes: ["<cstddef>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false, testing::alternate_init<T>};
+      bool allOk = true;
+      auto ref_data = test_helper.data_ref();
+      auto expected_result = test_helper.result_ref();
+
+      auto test_data = test_helper.data_target();
+      auto test_result = test_helper.result_target();
+      for (size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        for (unsigned shift = 0; shift < sizeof(typename Vec::base_type)*CHAR_BIT; ++shift) {
+          for (size_t j = 0; j < Vec::vector_element_count(); ++j) {
+            expected_result[j] = ref_data[i+j] << shift;
+          }
+          auto vec = loadu<Vec>(&test_data[i]);
+          storeu<Vec>(test_result, shift_left<Vec>(vec, set1<Vec>((typename Vec::base_type)shift)));
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+        }
+      }
+      return allOk;
+...
+---
+primitive_name: "shift_right"
+additional_non_specialized_template_parameters:
+  - ctype: "bool"
+    name: "PreserveSign"
+    default_value: "true"
+brief_description: "Arithmetic shift of data to the right by n bits."
+detailed_description: |
+  Shifts in zeros or ones depending on (i) the most significant bit of a data value, (ii) the data type and (iii) the value of PreserveSign.
+  For unsigned data type, the PreserveSign parameter and the most significant bit does not have any effect on the value of the bits shifted in (always shifts in 0).
+  For signed data types, the PreserveSign parameter and the most significant bit determine the value of the shift in.
+  If PreserveSign is set to false, 0 is shifted in, otherwise the most significant bit is shifted in.
+  Note: The value of shift is __not__ checked for validity to omit branching and unnecessary instructions. Consequently, if shift is larger than the number
+  of bits in the data type, the result will likely differ between the scalar and the SIMD implementations:
+  Scalar: value >> (shift % (sizeof(typename Vec::base_type) * CHAR_BIT))
+  SIMD: 0.
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "Data."
+  - ctype: "const unsigned int"
+    name: "shift"
+    description: "Amount of bits, data should be shifted."
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Vector containing result of the right shift."
+definitions:
+  #INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint32_t", "uint64_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    includes: ["<type_traits>"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm512_srai_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm512_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f"]
+    includes: ["<type_traits>"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m512i const result1_16 = _mm512_and_si512(_mm512_srai_epi32(data, shift), _mm512_set1_epi32(0xFFFF0000));
+        __m512i const result0_16 = _mm512_srli_epi32(_mm512_srai_epi32(_mm512_slli_epi32(data, 16), shift), 16);
+        return _mm512_or_si512(result0_16, result1_16);
+      } else {
+        __m512i const result0_16 = _mm512_srli_epi32(_mm512_and_si512(data, _mm512_set1_epi32(0xFFFF)), shift);
+        __m512i const result1_16 = _mm512_and_si512(_mm512_srli_epi32(data, shift), _mm512_set1_epi32(0xFFFF0000));
+        return _mm512_or_si512(result0_16, result1_16);
+      }
+    alternative: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        // extract the lower and upper 256 bit
+        __m256i const lower256_16 = _mm512_extracti32x8_epi32(data, 0);
+        __m256i const upper256_16 = _mm512_extracti32x8_epi32(data, 1);
+        // Sign extend packed 16-bit integers in a to packed 32-bit integers
+        __m512i const lower256_32 = _mm512_cvtepi16_epi32(lower256_16);
+        __m512i const upper256_32 = _mm512_cvtepi16_epi32(upper256_16);
+        // Shift the 32-bit integers to the right while preserving the sign
+        __m512i const lower256_32_shifted = _mm512_srai_epi32(lower256_32, shift);
+        __m512i const upper256_32_shifted = _mm512_srai_epi32(upper256_32, shift);
+        // Convert packed 32-bit integers in a to packed 16-bit integers with truncation
+        __m256i const lower256_16_shifted = _mm512_cvtepi32_epi16(lower256_32_shifted);
+        __m256i const upper256_16_shifted = _mm512_cvtepi32_epi16(upper256_32_shifted);
+        // Merge results and return
+        __m512i const result = _mm512_zextsi256_si512(lower256_16_shifted);
+        return _mm512_inserti32x8(result, upper256_16_shifted, 1);
+      } else {
+        return _mm512_and_si512(
+          _mm512_srli_epi32(data, shift),
+          _mm512_set1_epi16((static_cast<uint16_t>(-1))>>shift)
+        );
+      }
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx512f"]
+    includes: ["<type_traits>"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m512i const valid_bits = _mm512_set1_epi32(0xFF);
+        __m512i const result0_8 = _mm512_srli_epi32(_mm512_srai_epi32(_mm512_slli_epi32(data, 24), shift), 24);
+        __m512i const result1_8 = _mm512_and_si512(_mm512_srli_epi32(_mm512_srai_epi32(_mm512_slli_epi32(data, 16), shift), 16), _mm512_slli_epi32(valid_bits, 8));
+        __m512i const result2_8 = _mm512_and_si512(_mm512_srli_epi32(_mm512_srai_epi32(_mm512_slli_epi32(data, 8), shift), 8), _mm512_slli_epi32(valid_bits, 16));
+        __m512i const result3_8 = _mm512_and_si512(_mm512_srai_epi32(data, shift), _mm512_slli_epi32(valid_bits, 24));
+        return _mm512_or_si512(_mm512_or_si512(result0_8, result1_8), _mm512_or_si512(result2_8, result3_8));
+      } else {
+        return _mm512_and_si512(
+          _mm512_srli_epi32(data, shift),
+          _mm512_set1_epi8((static_cast<uint8_t>(-1))>>shift)
+        );
+      }
+    alternative: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        // extract the lower and upper 128 bit
+        __m128i const data0_128_8 = _mm512_extracti32x4_epi32(data, 0);
+        __m128i const data1_128_8 = _mm512_extracti32x4_epi32(data, 1);
+        __m128i const data2_128_8 = _mm512_extracti32x4_epi32(data, 2);
+        __m128i const data3_128_8 = _mm512_extracti32x4_epi32(data, 3);
+
+        // Sign extend packed 8-bit integers in a to packed 32-bit integers
+        __m512i const data0_128_32 = _mm512_cvtepi8_epi32(data0_128_8);
+        __m512i const data1_128_32 = _mm512_cvtepi8_epi32(data1_128_8);
+        __m512i const data2_128_32 = _mm512_cvtepi8_epi32(data2_128_8);
+        __m512i const data3_128_32 = _mm512_cvtepi8_epi32(data3_128_8);
+
+        // Shift the 32-bit integers to the right while preserving the sign
+        __m512i const data0_128_32_shifted = _mm512_srai_epi32(data0_128_32, shift);
+        __m512i const data1_128_32_shifted = _mm512_srai_epi32(data1_128_32, shift);
+        __m512i const data2_128_32_shifted = _mm512_srai_epi32(data2_128_32, shift);
+        __m512i const data3_128_32_shifted = _mm512_srai_epi32(data3_128_32, shift);
+
+        // Convert packed 32-bit integers in a to packed 16-bit integers with truncation
+        __m128i const data0_128_8_shifted = _mm512_cvtepi32_epi8(data0_128_32_shifted);
+        __m128i const data1_128_8_shifted = _mm512_cvtepi32_epi8(data1_128_32_shifted);
+        __m128i const data2_128_8_shifted = _mm512_cvtepi32_epi8(data2_128_32_shifted);
+        __m128i const data3_128_8_shifted = _mm512_cvtepi32_epi8(data3_128_32_shifted);
+
+        // Merge partial results
+        __m512i result = _mm512_zextsi128_si512(data0_128_8_shifted);
+        result = _mm512_inserti32x4(result, data1_128_8_shifted, 1);
+        result = _mm512_inserti32x4(result, data2_128_8_shifted, 2);
+        return _mm512_inserti32x4(result, data3_128_8_shifted, 3);
+      } else {
+        return _mm512_and_si512(
+          _mm512_srli_epi32(data, shift),
+          _mm512_set1_epi8((static_cast<uint8_t>(-1))>>shift)
+        );
+      }
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f", "avx512bw"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm512_srai_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm512_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  #Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      if constexpr(PreserveSign) {
+        __m256i result = _mm256_srli_epi64(data, shift);
+        // Create a mask for the sign bit
+        __m256i sign_mask = _mm256_cmpgt_epi64(_mm256_setzero_si256(), data); // Get the sign bit
+        sign_mask = _mm256_slli_epi64(sign_mask, 64 - shift); // Shift the sign bit mask
+        // Combine with the sign mask to achieve arithmetic shift
+        result = _mm256_or_si256(result, sign_mask);
+        return result;
+      } else {
+        return _mm256_srli_epi64(data, shift);
+      }
+    alternative:
+      - |
+          if constexpr(PreserveSign) {
+            auto const shifted = _mm256_srli_epi64(data, shift);
+            auto const msb_as_lsb = _mm256_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1);
+            auto const lsb_shifted = _mm256_slli_epi64(msb_as_lsb, shift);
+            auto const lsb_all_set = _mm256_sub_epi64(lsb_shifted, _mm256_set1_epi64x(1));
+            auto const lsb_mask = _mm256_sub_epi64(_mm256_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1), _mm256_set1_epi64x(1));
+            auto const result_msb_as_lsb = _mm256_andnot_si256(lsb_mask, lsb_all_set);
+            auto const result_msb = _mm256_slli_epi64(result_msb_as_lsb, sizeof(int64_t)*CHAR_BIT - shift);
+            return _mm256_or_si256(shifted, result_msb);
+          } else {
+            return _mm256_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+          }
+  - target_extension: "avx2"
+    ctype: ["int64_t"]
+    lscpu_flags: ["avx2", "avx512f", "avx512vl"]
+    implementation: |
+      if constexpr(PreserveSign) {
+        return _mm256_srai_epi64(data, shift);
+      } else {
+        return _mm256_srli_epi64(data, shift);
+      }
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "uint32_t", "uint64_t", "int16_t", "int32_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm256_srai_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm256_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m256i const valid_bits = _mm256_set1_epi32(0xFF);
+        __m256i const result0_8  = _mm256_srli_epi32(_mm256_srai_epi32(_mm256_slli_epi32(data, 24), shift), 24);
+        __m256i const result1_8  = _mm256_and_si256( _mm256_srli_epi32(_mm256_srai_epi32(_mm256_slli_epi32(data, 16), shift), 16), _mm256_slli_epi32(valid_bits, 8));
+        __m256i const result2_8  = _mm256_and_si256( _mm256_srli_epi32(_mm256_srai_epi32(_mm256_slli_epi32(data, 8), shift), 8), _mm256_slli_epi32(valid_bits, 16));
+        __m256i const result3_8  = _mm256_and_si256( _mm256_srai_epi32(data, shift), _mm256_slli_epi32(valid_bits, 24));
+        return _mm256_or_si256(_mm256_or_si256(result0_8, result1_8), _mm256_or_si256(result2_8, result3_8));
+      } else {
+        return _mm256_and_si256(
+          _mm256_srli_epi32(data, shift),
+          _mm256_set1_epi8((static_cast<uint8_t>(-1))>>shift)
+        );
+      }
+ #Intel - SSE
+  - target_extension: "sse"
+    ctype: ["int64_t"]
+    lscpu_flags: ["sse2", "avx512f", "avx512vl"]
+    implementation: |
+      if constexpr (PreserveSign) {
+        return _mm_srai_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "sse"
+    ctype: ["int64_t"]
+    lscpu_flags: ["sse2", "avx2"]
+    implementation: |
+      if constexpr(PreserveSign) {
+        __m128i result = _mm_srli_epi64(data, shift);
+        // Create a mask for the sign bit
+        __m128i sign_mask = _mm_cmpgt_epi64(_mm_setzero_si128(), data); // Get the sign bit
+        sign_mask = _mm_slli_epi64(sign_mask, 64 - shift); // Shift the sign bit mask
+        // Combine with the sign mask to achieve arithmetic shift
+        result = _mm_or_si128(result, sign_mask);
+        return result;
+      } else {
+        return _mm_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+    alternative: |
+      if constexpr(PreserveSign) {
+        auto const shifted = _mm_srli_epi64(data, shift);
+        auto const msb_as_lsb = _mm_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1);
+        auto const lsb_shifted = _mm_slli_epi64(msb_as_lsb, shift);
+        auto const lsb_all_set = _mm_sub_epi64(lsb_shifted, _mm_set1_epi64x(1));
+        auto const lsb_mask = _mm_sub_epi64(_mm_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1), _mm_set1_epi64x(1));
+        auto const result_msb_as_lsb = _mm_andnot_si128(lsb_mask, lsb_all_set);
+        auto const result_msb = _mm_slli_epi64(result_msb_as_lsb, sizeof(int64_t)*CHAR_BIT - shift);
+        return _mm_or_si128(shifted, result_msb);
+      } else {
+        return _mm_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "sse"
+    ctype: ["uint16_t", "uint32_t", "int16_t", "int32_t", "uint64_t"]
+    lscpu_flags: ["sse2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm_srai_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm_srli_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "sse"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["sse2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m128i const valid_bits = _mm_set1_epi32(0xFF);
+        __m128i const result0_8  = _mm_srli_epi32(_mm_srai_epi32(_mm_slli_epi32(data, 24), shift), 24);
+        __m128i const result1_8  = _mm_and_si128( _mm_srli_epi32(_mm_srai_epi32(_mm_slli_epi32(data, 16), shift), 16), _mm_slli_epi32(valid_bits, 8));
+        __m128i const result2_8  = _mm_and_si128( _mm_srli_epi32(_mm_srai_epi32(_mm_slli_epi32(data, 8), shift), 8), _mm_slli_epi32(valid_bits, 16));
+        __m128i const result3_8  = _mm_and_si128( _mm_srai_epi32(data, shift), _mm_slli_epi32(valid_bits, 24));
+        return _mm_or_si128(_mm_or_si128(result0_8, result1_8), _mm_or_si128(result2_8, result3_8));
+      } else {
+        return _mm_and_si128(
+          _mm_srli_epi32(data, shift),
+          _mm_set1_epi8((static_cast<uint8_t>(-1))>>shift)
+        );
+      }
+  # - target_extension: "sse"
+  #   ctype: ["float"]
+  #   lscpu_flags: ["sse2"]
+  #   implementation: "return _mm_castsi128_ps(_mm_srli_epi32(_mm_castps_si128(data), shift));"
+  # - target_extension: "sse"
+  #   ctype: ["double"]
+  #   lscpu_flags: ["sse2"]
+  #   implementation: "return _mm_castsi128_pd(_mm_srli_epi64(_mm_castpd_si128(data), shift));"
+  #ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["neon"]
+    implementation: |
+      if constexpr (std::is_signed_v<typename Vec::base_type>) {
+        if constexpr (PreserveSign) {
+          return vshlq_s{{ intrin_tp[ctype][1] }}(data, vdupq_n_s{{ intrin_tp[ctype][1] }}(-shift));
+        } else {
+          return vshlq_u{{ intrin_tp[ctype][1] }}(
+            vreinterpretq_u{{ intrin_tp[ctype][1] }}_s{{ intrin_tp[ctype][1] }}(data),
+            vdupq_n_s{{ intrin_tp[ctype][1] }}(-shift)
+          );
+        }
+      } else {
+        return vshlq_u{{ intrin_tp[ctype][1] }}(data, vdupq_n_s{{ intrin_tp[ctype][1] }}(-shift));
+      }
+  #SCALAR
+  - target_extension: "scalar"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (!PreserveSign)) {
+        return static_cast<std::make_unsigned_t<typename Vec::register_type>>(data) >> shift;
+        //return (typename Vec::register_type)(((std::make_unsigned_t<typename Vec::register_type>)data) >> shift);
+      } else {
+        return data >> shift;
+      }
+  #FGPA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = data[i] >> shift;
+      }
+      return result;
+  # - target_extension: "scalar"
+  #   ctype: ["int8_t", "int16_t", "int32_t", "int64_t"]
+  #   lscpu_flags: []
+  #   implementation: |
+  #     return (shift >= sizeof(typename Vec::register_type) * 8)
+  #         ? ((data >> (sizeof(typename Vec::register_type) * 8 - 1)) ? -1 : 0)
+  #         : static_cast<typename Vec::register_type>(static_cast<typename std::make_unsigned<typename Vec::register_type>::type>(data)) >> shift;
+  # - target_extension: "scalar"
+  #   ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t"]
+  #   lscpu_flags: []
+  #   implementation: "return (shift >= sizeof(typename Vec::register_type) * 8) ? 0 : data >> shift;"
+  # - target_extension: "scalar"
+  #   ctype: ["float"]
+  #   lscpu_flags: []
+  #   is_native: False
+  #   implementation: |
+  #     uint32_t x = *reinterpret_cast<uint32_t const *>(&data);
+  #     x >>= shift;
+  #     return *reinterpret_cast<float*>(&x);
+  # - target_extension: "scalar"
+  #   ctype: ["double"]
+  #   lscpu_flags: []
+  #   is_native: False
+  #   implementation: |
+  #     uint64_t x = *reinterpret_cast<uint64_t const *>(&data);
+  #     x >>= shift;
+  #     return *reinterpret_cast<double*>(&x);
+testing:
+  - test_name: "shift_right_arithmetic"
+    requires: ["storeu", "loadu"]
+    includes: ["<cstddef>", "<type_traits>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false, testing::alternate_init<T>};
+      bool allOk = true;
+      auto ref_data = test_helper.data_ref();
+      auto expected_result = test_helper.result_ref();
+
+      auto test_data = test_helper.data_target();
+      auto test_result = test_helper.result_target();
+      for (size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        for (unsigned shift = 0; shift < sizeof(typename Vec::base_type)*CHAR_BIT; ++shift) {
+          for (size_t j = 0; j < Vec::vector_element_count(); ++j) {
+            expected_result[j] = ref_data[i+j] >> shift;
+          }
+          auto vec = loadu<Vec>(&test_data[i]);
+          storeu<Vec>(test_result, shift_right<Vec, true>(vec, shift));
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+          if (!allOk) {
+            std::cerr << "Error with " << tsl::type_name<Vec>() << "(" << sizeof(typename Vec::base_type) << " * " << Vec::vector_element_count() << ")" << std::endl;
+            for (auto x = 0; x < Vec::vector_element_count(); ++x) {
+              if (test_helper.result_target()[x] != expected_result[x]) {
+                std::cerr << "==================================== START ====================================" << std::endl;
+                std::cerr << "data[" << x << "] = " << +(ref_data[i+x]) << " >> " << +shift << std::endl;
+                std::cerr << "expected_result[" << x << "] = " << +(expected_result[x]) << std::endl;
+                std::cerr << "test_result[" << x << "] = " << +(test_helper.result_target()[x]) << std::endl;
+                std::cerr << "==================================== END  ====================================" << std::endl;
+              }
+            }
+          }
+        }
+      }
+      return allOk;
+  - test_name: "shift_right_ignore_sign"
+    requires: ["storeu", "loadu"]
+    includes: ["<cstddef>", "<type_traits>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      using UT = typename std::make_unsigned_t<T>;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false, testing::alternate_init<T>};
+      bool allOk = true;
+      auto ref_data = test_helper.data_ref();
+      auto expected_result = test_helper.result_ref();
+
+      auto test_data = test_helper.data_target();
+      auto test_result = test_helper.result_target();
+      for (size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        for (unsigned shift = 0; shift < sizeof(typename Vec::base_type)*CHAR_BIT; ++shift) {
+          for (size_t j = 0; j < Vec::vector_element_count(); ++j) {
+            expected_result[j] = static_cast<T>(static_cast<UT>(ref_data[i+j]) >> shift);
+          }
+          auto vec = loadu<Vec>(&test_data[i]);
+          storeu<Vec>(test_result, shift_right<Vec, false>(vec, shift));
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+        }
+      }
+      return allOk;
+...
+---
+primitive_name: "shift_right"
+functor_name: "shift_right_vector"
+additional_non_specialized_template_parameters:
+  - ctype: "bool"
+    name: "PreserveSign"
+    default_value: "true"
+brief_description: "Arithmetic shift of data to the right by n bits."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "Data."
+  - ctype: "const typename Vec::register_type"
+    name: "shift"
+    description: "Amount of bits, data should be shifted."
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Vector containing result of the left shift."
+definitions:
+  #INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint32_t", "uint64_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm512_srav_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm512_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m512i const shift0_16  = _mm512_and_si512(shift, _mm512_set1_epi32(0xFFFF));
+        __m512i const shift1_16  = _mm512_srli_epi32(shift, 16);
+        __m512i const result1_16 = _mm512_and_si512(_mm512_srav_epi32(data, shift1_16), _mm512_set1_epi32(0xFFFF0000));
+        __m512i const result0_16 = _mm512_srli_epi32(_mm512_srav_epi32(_mm512_slli_epi32(data, 16), shift0_16), 16);
+        return _mm512_or_si512(result0_16, result1_16);
+      } else {
+        __m512i const shift0_16  = _mm512_and_si512(shift, _mm512_set1_epi32(0xFFFF));
+        __m512i const shift1_16  = _mm512_srli_epi32(shift, 16);
+        __m512i const result0_16 = _mm512_srlv_epi32(_mm512_and_si512(data, _mm512_set1_epi32(0xFFFF)), shift0_16);
+        __m512i const result1_16 = _mm512_and_si512(_mm512_srlv_epi32(data, shift1_16), _mm512_set1_epi32(0xFFFF0000));
+        return _mm512_or_si512(result0_16, result1_16);
+      }
+    alternative: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        // extract the lower and upper 256 bit
+        __m256i const lower256_16 = _mm512_extracti32x8_epi32(data, 0);
+        __m256i const shift_lower_256_16 = _mm512_extracti32x8_epi32(shift, 0);
+        __m256i const upper256_16 = _mm512_extracti32x8_epi32(data, 1);
+        __m256i const shift_upper_256_16 = _mm512_extracti32x8_epi32(shift, 1);
+        // Sign extend packed 16-bit integers in a to packed 32-bit integers
+        __m512i const lower256_32 = _mm512_cvtepi16_epi32(lower256_16);
+        __m512i const shift_lower_256_32 = _mm512_cvtepi16_epi32(shift_lower_256_16);
+        __m512i const upper256_32 = _mm512_cvtepi16_epi32(upper256_16);
+        __m512i const shift_upper_256_32 = _mm512_cvtepi16_epi32(shift_upper_256_16);
+        // Shift the 32-bit integers to the right while preserving the sign
+        __m512i const lower256_32_shifted = _mm512_srav_epi32(lower256_32, shift_lower_256_32);
+        __m512i const upper256_32_shifted = _mm512_srav_epi32(upper256_32, shift_upper_256_32);
+        // Convert packed 32-bit integers in a to packed 16-bit integers with truncation
+        __m256i const lower256_16_shifted = _mm512_cvtepi32_epi16(lower256_32_shifted);
+        __m256i const upper256_16_shifted = _mm512_cvtepi32_epi16(upper256_32_shifted);
+        // Merge results and return
+        __m512i const result = _mm512_zextsi256_si512(lower256_16_shifted);
+        return _mm512_inserti32x8(result, upper256_16_shifted, 1);
+      } else {
+        __m512i data_low = _mm512_and_si512(data, _mm512_set1_epi32(0xFFFF));
+        __m512i data_high = _mm512_srli_epi32(data, 16);
+        __m512i shift_values_low = _mm512_and_si512(shift_values, _mm512_set1_epi32(0xFFFF));
+        __m512i shift_values_high = _mm512_srli_epi32(shift_values, 16);
+        // Perform logical right shift on each 32-bit element
+        __m512i result_low = _mm512_srlv_epi32(data_low, shift_values_low);
+        __m512i result_high = _mm512_srlv_epi32(data_high, shift_values_high);
+
+        // Merge results and return
+        return = _mm512_or_si512(result_low, _mm512_slli_epi32(result_high, 16));
+      }
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m512i const valid_bits = _mm512_set1_epi32(0xFF);
+        __m512i const shift0_8  = _mm512_and_si512(shift, valid_bits);
+        __m512i const shift1_8  = _mm512_and_si512(_mm512_srli_epi32(shift, 8), valid_bits);
+        __m512i const shift2_8  = _mm512_and_si512(_mm512_srli_epi32(shift, 16), valid_bits);
+        __m512i const shift3_8  = _mm512_and_si512(_mm512_srli_epi32(shift, 24), valid_bits);
+        __m512i const result3_8 = _mm512_and_si512(_mm512_srav_epi32(data, shift3_8), _mm512_slli_epi32(valid_bits, 24));
+        __m512i const result2_8 =
+          _mm512_and_si512(
+            _mm512_srli_epi32(
+              _mm512_srav_epi32(
+                _mm512_slli_epi32(data, 8),
+                shift2_8
+              ),
+              8
+            ),
+            _mm512_slli_epi32(valid_bits, 16)
+          );
+        __m512i const result1_8 =
+          _mm512_and_si512(
+            _mm512_srli_epi32(
+              _mm512_srav_epi32(
+                _mm512_slli_epi32(data, 16),
+                shift1_8
+              ),
+              16
+            ),
+            _mm512_slli_epi32(valid_bits, 8)
+          );
+        __m512i const result0_8 =
+          _mm512_and_si512(
+            _mm512_srli_epi32(
+              _mm512_srav_epi32(
+                _mm512_slli_epi32(data, 24),
+                shift0_8
+              ),
+              24
+            ),
+            valid_bits
+          );
+        return _mm512_or_si512(_mm512_or_si512(result0_8, result1_8), _mm512_or_si512(result2_8, result3_8));
+      } else {
+        __m512i const valid_bits = _mm512_set1_epi32(0xFF);
+        __m512i const shift0_8  = _mm512_and_si512(shift, valid_bits);
+        __m512i const shift1_8  = _mm512_and_si512(_mm512_srli_epi32(shift, 8), valid_bits);
+        __m512i const shift2_8  = _mm512_and_si512(_mm512_srli_epi32(shift, 16), valid_bits);
+        __m512i const shift3_8  = _mm512_and_si512(_mm512_srli_epi32(shift, 24), valid_bits);
+        __m512i const result0_8 =
+          _mm512_and_si512(
+            _mm512_srlv_epi32(
+              _mm512_and_si512(data, valid_bits),
+              shift0_8
+            ),
+            valid_bits
+          );
+        __m512i const result1_8 =
+          _mm512_and_si512(
+            _mm512_srlv_epi32(
+              _mm512_and_si512(
+                data,
+                _mm512_slli_epi32(valid_bits, 8)
+              ),
+              shift1_8
+            ),
+            _mm512_slli_epi32(valid_bits, 8)
+          );
+        __m512i const result2_8 =
+          _mm512_and_si512(
+            _mm512_srlv_epi32(
+              _mm512_and_si512(
+                data,
+                _mm512_slli_epi32(valid_bits, 16)
+              ),
+              shift2_8
+            ),
+            _mm512_slli_epi32(valid_bits, 16)
+          );
+        __m512i const result3_8 =
+          _mm512_and_si512(
+            _mm512_srlv_epi32(
+              _mm512_and_si512(
+                data,
+                _mm512_slli_epi32(valid_bits, 24)
+              ),
+              shift3_8
+            ),
+            _mm512_slli_epi32(valid_bits, 24)
+          );
+        return _mm512_or_si512(_mm512_or_si512(result0_8, result1_8), _mm512_or_si512(result2_8, result3_8));
+      }
+    alternative: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        // extract the lower and upper 256 bit
+        __m128i const data0_128_8 = _mm512_extracti32x4_epi32(data, 0);
+        __m128i const shift0_128_8 = _mm512_extracti32x4_epi32(shift, 0);
+        __m128i const data1_128_8 = _mm512_extracti32x4_epi32(data, 1);
+        __m128i const shift1_128_8 = _mm512_extracti32x4_epi32(shift, 1);
+        __m128i const data2_128_8 = _mm512_extracti32x4_epi32(data, 2);
+        __m128i const shift2_128_8 = _mm512_extracti32x4_epi32(shift, 2);
+        __m128i const data3_128_8 = _mm512_extracti32x4_epi32(data, 3);
+        __m128i const shift3_128_8 = _mm512_extracti32x4_epi32(shift, 3);
+
+        // Sign extend packed 8-bit integers in a to packed 32-bit integers
+        __m512i const data0_128_32 = _mm512_cvtepi8_epi32(data0_128_8);
+        __m512i const shift0_128_32 = _mm512_cvtepi8_epi32(shift0_128_8);
+        __m512i const data1_128_32 = _mm512_cvtepi8_epi32(data1_128_8);
+        __m512i const shift1_128_32 = _mm512_cvtepi8_epi32(shift1_128_8);
+        __m512i const data2_128_32 = _mm512_cvtepi8_epi32(data2_128_8);
+        __m512i const shift2_128_32 = _mm512_cvtepi8_epi32(shift2_128_8);
+        __m512i const data3_128_32 = _mm512_cvtepi8_epi32(data3_128_8);
+        __m512i const shift3_128_32 = _mm512_cvtepi8_epi32(shift3_128_8);
+        // Shift the 32-bit integers to the right while preserving the sign
+        __m512i const data0_128_32_shifted = _mm512_srav_epi32(data0_128_32, shift0_128_32);
+        __m512i const data1_128_32_shifted = _mm512_srav_epi32(data1_128_32, shift1_128_32);
+        __m512i const data2_128_32_shifted = _mm512_srav_epi32(data2_128_32, shift2_128_32);
+        __m512i const data3_128_32_shifted = _mm512_srav_epi32(data3_128_32, shift3_128_32);
+        // Convert packed 32-bit integers into packed 8-bit integers with trunctaion
+        __m128i const result0_128 = _mm512_cvtepi32_epi8(data0_128_32_shifted);
+        __m128i const result1_128 = _mm512_cvtepi32_epi8(data1_128_32_shifted);
+        __m128i const result2_128 = _mm512_cvtepi32_epi8(data2_128_32_shifted);
+        __m128i const result3_128 = _mm512_cvtepi32_epi8(data3_128_32_shifted);
+        // Merge results and return
+        __m256i lower256 = _mm256_zextsi128_si256(result0_128);
+        lower256 = _mm256_insertf128_si256(lower256, result1_128, 1);
+        __m256i upper256 = _mm256_zextsi128_si256(result2_128);
+        upper256 = _mm256_insertf128_si256(upper256, result3_128, 1);
+        __m512i result = _mm512_zextsi128_si512(lower256);
+        return _mm512_inserti32x8(result, upper256, 1);
+      } else {
+        __m512i data0_8 = _mm512_and_si512(data, _mm512_set1_epi32(0xFF));
+        __m512i data1_8 = _mm512_and_si512(data, _mm512_set1_epi32(0xFF00));
+        __m512i data2_8 = _mm512_and_si512(data, _mm512_set1_epi32(0xFF0000));
+        __m512i data3_8 = _mm512_and_si512(data, _mm512_set1_epi32(0xFF000000));
+        __m512i shift0_8 = _mm512_and_si512(shift, _mm512_set1_epi32(0xFF));
+        __m512i shift1_8 = _mm512_and_si512(_mm512_srli_epi32(shift, 8), _mm512_set1_epi32(0xFF));
+        __m512i shift2_8 = _mm512_and_si512(_mm512_srli_epi32(shift, 16), _mm512_set1_epi32(0xFF));
+        __m512i shift3_8 = _mm512_and_si512(_mm512_srli_epi32(shift, 24), _mm512_set1_epi32(0xFF));
+        __m512i result0 = _mm512_srlv_epi32(data0_8, shift0_8);
+        __m512i result1 = _mm512_and_si512(_mm512_srlv_epi32(data1_8, shift1_8), _mm512_set1_epi32(0xFF00));
+        __m512i result2 = _mm512_and_si512(_mm512_srlv_epi32(data2_8, shift2_8), _mm512_set1_epi32(0xFF0000));
+        __m512i result3 = _mm512_and_si512(_mm512_srlv_epi32(data3_8, shift3_8), _mm512_set1_epi32(0xFF000000));
+        return _mm512_or_si512(_mm512_or_si512(result0, result1), _mm512_or_si512(result2, result3));
+      }
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512bw"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm512_srav_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm512_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  #Intel - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint32_t", "int32_t", "uint64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      if constexpr (std::is_same_v<typename Vec::base_type, uint64_t>) {
+        return _mm256_srlv_epi64(data, shift);
+      } else {
+        if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+          return _mm256_srav_epi{{ intrin_tp[ctype][1] }}(data, shift);
+        } else {
+          return _mm256_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+        }
+      }
+  - target_extension: "avx2"
+    ctype: ["int64_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      if constexpr (PreserveSign) {
+        __m256i result = _mm256_srlv_epi64(data, shift);
+        __m256i sign_mask = _mm256_cmpgt_epi64(_mm256_setzero_si256(), data);
+        sign_mask = _mm256_sllv_epi64(sign_mask, _mm256_sub_epi64(_mm256_set1_epi64x(64), shift));
+        result = _mm256_or_si256(result, sign_mask);
+        return result;
+      } else {
+        return _mm256_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "avx2"
+    ctype: ["int64_t"]
+    lscpu_flags: ["avx2", "avx512f", "avx512vl"]
+    implementation: |
+      if constexpr (PreserveSign) {
+        return _mm256_srav_epi64(data, shift);
+      } else {
+        return _mm256_srlv_epi64(data, shift);
+      }
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx2"]
+    specialization_comment: |
+      To realize a arithmetic right shift, we take the following steps:
+      1. Get the lower 16 bits of the shift values into 32-bit values (shift0_16)
+      2. Get the upper 16 bits of the shift values into 32-bit values (shift1_16)
+      3. Execute a arithmetic 32-bit right shift on the upper 16 bit of every 32-bit element in the register and mask out the lower 16 bit (result1_16)
+      4. Shift the lower 16 bit of every 32-bit element to the left by 16 bits. Now, we can execute a 32-bit arithmetic right shift that preserves the sign bit and shift the result to the right by 16 (result0_16).
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m256i const shift0_16 = _mm256_and_si256(shift, _mm256_set1_epi32(0xFFFF));
+        __m256i const shift1_16 = _mm256_srli_epi32(shift, 16);
+        __m256i const result1_16 = _mm256_and_si256(_mm256_srav_epi32(data, shift1_16), _mm256_set1_epi32(0xFFFF0000));
+        __m256i const result0_16 = _mm256_srli_epi32(_mm256_srav_epi32(_mm256_slli_epi32(data, 16), shift0_16), 16);
+        return _mm256_or_si256(result0_16, result1_16);
+      } else {
+        __m256i const shift0_16 = _mm256_and_si256(shift, _mm256_set1_epi32(0xFFFF));
+        __m256i const shift1_16 = _mm256_srli_epi32(shift, 16);
+        __m256i const result0_16 = _mm256_srlv_epi32(_mm256_and_si256(data, _mm256_set1_epi32(0xFFFF)), shift0_16);
+        __m256i const result1_16 = _mm256_and_si256(_mm256_srlv_epi32(data, shift1_16), _mm256_set1_epi32(0xFFFF0000));
+        return _mm256_or_si256(result0_16, result1_16);
+      }
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["avx512bw", "avx512vl"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm256_srav_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm256_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["avx2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m256i const valid_bits = _mm256_set1_epi32(0xFF);
+        __m256i const shift0_8  = _mm256_and_si256(shift, valid_bits);
+        __m256i const shift1_8  = _mm256_and_si256(_mm256_srli_epi32(shift, 8), valid_bits);
+        __m256i const shift2_8  = _mm256_and_si256(_mm256_srli_epi32(shift, 16), valid_bits);
+        __m256i const shift3_8  = _mm256_and_si256(_mm256_srli_epi32(shift, 24), valid_bits);
+        __m256i const result3_8 = _mm256_and_si256(_mm256_srav_epi32(data, shift3_8), _mm256_slli_epi32(valid_bits, 24));
+        __m256i const result2_8 =
+          _mm256_and_si256(
+            _mm256_srli_epi32(
+              _mm256_srav_epi32(
+                _mm256_slli_epi32(data, 8),
+                shift2_8
+              ),
+              8
+            ),
+            _mm256_slli_epi32(valid_bits, 16)
+          );
+        __m256i const result1_8 =
+          _mm256_and_si256(
+            _mm256_srli_epi32(
+              _mm256_srav_epi32(
+                _mm256_slli_epi32(data, 16),
+                shift1_8
+              ),
+              16
+            ),
+            _mm256_slli_epi32(valid_bits, 8)
+          );
+        __m256i const result0_8 =
+          _mm256_and_si256(
+            _mm256_srli_epi32(
+              _mm256_srav_epi32(
+                _mm256_slli_epi32(data, 24),
+                shift0_8
+              ),
+              24
+            ),
+            valid_bits
+          );
+        return _mm256_or_si256(_mm256_or_si256(result0_8, result1_8), _mm256_or_si256(result2_8, result3_8));
+      } else {
+        __m256i const valid_bits = _mm256_set1_epi32(0xFF);
+        __m256i const shift0_8   = _mm256_and_si256(shift, valid_bits);
+        __m256i const shift1_8   = _mm256_and_si256(_mm256_srli_epi32(shift, 8), valid_bits);
+        __m256i const shift2_8   = _mm256_and_si256(_mm256_srli_epi32(shift, 16), valid_bits);
+        __m256i const shift3_8   = _mm256_and_si256(_mm256_srli_epi32(shift, 24), valid_bits);
+        __m256i const result0_8  =
+          _mm256_and_si256(
+            _mm256_srlv_epi32(
+              _mm256_and_si256(data, valid_bits),
+              shift0_8
+            ),
+            valid_bits
+          );
+        __m256i const result1_8 =
+          _mm256_and_si256(
+            _mm256_srlv_epi32(
+              _mm256_and_si256(
+                data,
+                _mm256_slli_epi32(valid_bits, 8)
+              ),
+              shift1_8
+            ),
+            _mm256_slli_epi32(valid_bits, 8)
+          );
+        __m256i const result2_8 =
+          _mm256_and_si256(
+            _mm256_srlv_epi32(
+              _mm256_and_si256(
+                data,
+                _mm256_slli_epi32(valid_bits, 16)
+              ),
+              shift2_8
+            ),
+            _mm256_slli_epi32(valid_bits, 16)
+          );
+        __m256i const result3_8 =
+          _mm256_and_si256(
+            _mm256_srlv_epi32(
+              _mm256_and_si256(
+                data,
+                _mm256_slli_epi32(valid_bits, 24)
+              ),
+              shift3_8
+            ),
+            _mm256_slli_epi32(valid_bits, 24)
+          );
+        return _mm256_or_si256(_mm256_or_si256(result0_8, result1_8), _mm256_or_si256(result2_8, result3_8));
+      }
+  - target_extension: "avx2"
+    ctype: ["int64_t"]
+    lscpu_flags: ["avx2"]
+    includes: ["<climits>"]
+    implementation: |
+      if constexpr(PreserveSign) {
+        __m256i result = _mm256_srlv_epi64(data, shift);
+        // Create a mask for the sign bit
+        __m256i sign_mask = _mm256_cmpgt_epi64(_mm256_setzero_si256(), data); // Get the sign bit
+        sign_mask = _mm256_sllv_epi64(sign_mask, _mm256_sub_epi64(_mm256_set1_epi64x(64),shift)); // Shift the sign bit mask
+        // Combine with the sign mask to achieve arithmetic shift
+        result = _mm256_or_si256(result, sign_mask);
+        return result;
+      } else {
+        return _mm256_srlv_epi64(data, shift);
+      }
+    alternative: |
+      if constexpr (PreserveSign) {
+        auto const shifted = _mm256_srlv_epi64(data, shift);
+        auto const msb_as_lsb = _mm256_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1);
+        auto const lsb_shifted = _mm256_sllv_epi64(msb_as_lsb, shift);
+        auto const lsb_all_set = _mm256_sub_epi64(lsb_shifted, _mm256_set1_epi64x(1));
+        auto const lsb_mask = _mm256_sub_epi64(_mm256_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1), _mm256_set1_epi64x(1));
+        auto const result_msb_as_lsb = _mm256_andnot_si256(lsb_mask, lsb_all_set);
+        auto const result_msb = _mm256_sllv_epi64(result_msb_as_lsb, _mm256_sub_epi64(_mm256_set1_epi64x(sizeof(int64_t)*CHAR_BIT), shift));
+        return _mm256_or_si256(shifted, result_msb);
+      } else {
+        return _mm256_srlv_epi64(data, shift);
+      }
+  #Intel - SSE
+  - target_extension: "sse"
+    ctype: ["int32_t", "uint32_t", "uint64_t"]
+    lscpu_flags: ["sse2", "avx2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm_srav_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "sse"
+    ctype: ["int64_t"]
+    lscpu_flags: ["sse2", "avx2"]
+    includes: ["<climits>"]
+    implementation: |
+      if constexpr (PreserveSign) {
+        __m128i result = _mm_srlv_epi64(data, shift);
+        __m128i sign_mask = _mm_cmpgt_epi64(_mm_setzero_si128(), data);
+        sign_mask = _mm_sllv_epi64(sign_mask, _mm_sub_epi64(_mm_set1_epi64x(64), shift));
+        result = _mm_or_si128(result, sign_mask);
+        return result;
+      } else {
+        return _mm_srlv_epi64(data, shift);
+      }
+    alternative: |
+      if constexpr (PreserveSign) {
+        auto const shifted = _mm_srlv_epi64(data, shift);
+        auto const msb_as_lsb = _mm_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1);
+        auto const lsb_shifted = _mm_sllv_epi64(msb_as_lsb, shift);
+        auto const lsb_all_set = _mm_sub_epi64(lsb_shifted, _mm_set1_epi64x(1));
+        auto const lsb_mask = _mm_sub_epi64(_mm_srli_epi64(data, sizeof(int64_t)*CHAR_BIT-1), _mm_set1_epi64x(1));
+        auto const result_msb_as_lsb = _mm_andnot_si128(lsb_mask, lsb_all_set);
+        auto const result_msb = _mm_sllv_epi64(result_msb_as_lsb, _mm_sub_epi64(_mm_set1_epi64x(sizeof(int64_t)*CHAR_BIT), shift));
+        return _mm_or_si128(shifted, result_msb);
+      } else {
+        return _mm_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "sse"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["sse2", "avx512bw", "avx512vl"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        return _mm_srav_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      } else {
+        return _mm_srlv_epi{{ intrin_tp[ctype][1] }}(data, shift);
+      }
+  - target_extension: "sse"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: ["sse2", "avx2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m128i const shift0_16 = _mm_and_si128(shift, _mm_set1_epi32(0xFFFF));
+        __m128i const shift1_16 = _mm_srli_epi32(shift, 16);
+        __m128i const result1_16 = _mm_and_si128(_mm_srav_epi32(data, shift1_16), _mm_set1_epi32(0xFFFF0000));
+        __m128i const result0_16 = _mm_srli_epi32(_mm_srav_epi32(_mm_slli_epi32(data, 16), shift0_16), 16);
+        return _mm_or_si128(result0_16, result1_16);
+      } else {
+        __m128i const shift0_16 = _mm_and_si128(shift, _mm_set1_epi32(0xFFFF));
+        __m128i const shift1_16 = _mm_srli_epi32(shift, 16);
+        __m128i const result0_16 = _mm_srlv_epi32(_mm_and_si128(data, _mm_set1_epi32(0xFFFF)), shift0_16);
+        __m128i const result1_16 = _mm_and_si128(_mm_srlv_epi32(data, shift1_16), _mm_set1_epi32(0xFFFF0000));
+        return _mm_or_si128(result0_16, result1_16);
+      }
+  - target_extension: "sse"
+    ctype: ["uint8_t", "int8_t"]
+    lscpu_flags: ["sse2", "avx2"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (PreserveSign)) {
+        __m128i const valid_bits = _mm_set1_epi32(0xFF);
+        __m128i const shift0_8  = _mm_and_si128(shift, valid_bits);
+        __m128i const shift1_8  = _mm_and_si128(_mm_srli_epi32(shift, 8), valid_bits);
+        __m128i const shift2_8  = _mm_and_si128(_mm_srli_epi32(shift, 16), valid_bits);
+        __m128i const shift3_8  = _mm_and_si128(_mm_srli_epi32(shift, 24), valid_bits);
+        __m128i const result3_8 = _mm_and_si128(_mm_srav_epi32(data, shift3_8), _mm_slli_epi32(valid_bits, 24));
+        __m128i const result2_8 =
+          _mm_and_si128(
+            _mm_srli_epi32(
+              _mm_srav_epi32(
+                _mm_slli_epi32(data, 8),
+                shift2_8
+              ),
+              8
+            ),
+            _mm_slli_epi32(valid_bits, 16)
+          );
+        __m128i const result1_8 =
+          _mm_and_si128(
+            _mm_srli_epi32(
+              _mm_srav_epi32(
+                _mm_slli_epi32(data, 16),
+                shift1_8
+              ),
+              16
+            ),
+            _mm_slli_epi32(valid_bits, 8)
+          );
+        __m128i const result0_8 =
+          _mm_and_si128(
+            _mm_srli_epi32(
+              _mm_srav_epi32(
+                _mm_slli_epi32(data, 24),
+                shift0_8
+              ),
+              24
+            ),
+            valid_bits
+          );
+        return _mm_or_si128(_mm_or_si128(result0_8, result1_8), _mm_or_si128(result2_8, result3_8));
+      } else {
+        __m128i const valid_bits = _mm_set1_epi32(0xFF);
+        __m128i const shift0_8   = _mm_and_si128(shift, valid_bits);
+        __m128i const shift1_8   = _mm_and_si128(_mm_srli_epi32(shift, 8), valid_bits);
+        __m128i const shift2_8   = _mm_and_si128(_mm_srli_epi32(shift, 16), valid_bits);
+        __m128i const shift3_8   = _mm_and_si128(_mm_srli_epi32(shift, 24), valid_bits);
+        __m128i const result0_8  =
+          _mm_and_si128(
+            _mm_srlv_epi32(
+              _mm_and_si128(data, valid_bits),
+              shift0_8
+            ),
+            valid_bits
+          );
+        __m128i const result1_8 =
+          _mm_and_si128(
+            _mm_srlv_epi32(
+              _mm_and_si128(
+                data,
+                _mm_slli_epi32(valid_bits, 8)
+              ),
+              shift1_8
+            ),
+            _mm_slli_epi32(valid_bits, 8)
+          );
+        __m128i const result2_8 =
+          _mm_and_si128(
+            _mm_srlv_epi32(
+              _mm_and_si128(
+                data,
+                _mm_slli_epi32(valid_bits, 16)
+              ),
+              shift2_8
+            ),
+            _mm_slli_epi32(valid_bits, 16)
+          );
+        __m128i const result3_8 =
+          _mm_and_si128(
+            _mm_srlv_epi32(
+              _mm_and_si128(
+                data,
+                _mm_slli_epi32(valid_bits, 24)
+              ),
+              shift3_8
+            ),
+            _mm_slli_epi32(valid_bits, 24)
+          );
+        return _mm_or_si128(_mm_or_si128(result0_8, result1_8), _mm_or_si128(result2_8, result3_8));
+      }
+  #ARM - NEON
+  - target_extension: "neon"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ['neon']
+    implementation: |
+      // use negative shift, bcs shift left intrinsic shifts right for negative values.
+      auto neg_shift = vsubq_{{intrin_tp_full[ctype]}}(vmovq_n_{{intrin_tp_full[ctype]}}(0), shift);
+      if constexpr (std::is_signed_v<typename Vec::base_type>) {
+        if constexpr (PreserveSign) {
+          return vshlq_{{ intrin_tp_full[ctype] }}(data, neg_shift);
+        } else {
+          return vshlq_u{{ intrin_tp[ctype][1] }}(
+            vreinterpretq_u{{ intrin_tp[ctype][1] }}_s{{ intrin_tp[ctype][1] }}(data),
+            neg_shift
+          );
+        }
+      } else {
+        return vshlq_u{{ intrin_tp[ctype][1] }}(data, neg_shift);
+      }
+  #SCALAR
+  - target_extension: "scalar"
+    ctype: ["int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t"]
+    lscpu_flags: []
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::base_type>) && (!PreserveSign)) {
+        return static_cast<std::make_unsigned_t<typename Vec::register_type>>(data) >> shift;
+        //return (typename Vec::register_type)(((std::make_unsigned_t<typename Vec::register_type>)data) >> shift);
+      } else {
+        return data >> shift;
+      }
+  #FGPA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = data[i] >> shift[i];
+      }
+      return result;
+testing:
+  - test_name: "shift_right_arithmetic"
+    requires: ["storeu", "loadu", "set1"]
+    includes: ["<cstddef>", "<type_traits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false, testing::alternate_init<T>};
+      bool allOk = true;
+      auto ref_data = test_helper.data_ref();
+      auto expected_result = test_helper.result_ref();
+
+      auto test_data = test_helper.data_target();
+      auto test_result = test_helper.result_target();
+      for (size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        for (unsigned shift = 0; shift < sizeof(typename Vec::base_type)*CHAR_BIT; ++shift) {
+          for (size_t j = 0; j < Vec::vector_element_count(); ++j) {
+            expected_result[j] = ref_data[i+j] >> shift;
+          }
+          auto vec = loadu<Vec>(&test_data[i]);
+          storeu<Vec>(test_result, shift_right<Vec, true>(vec, set1<Vec>(shift)));
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+        }
+      }
+      return allOk;
+  - test_name: "shift_right_ignore_sign"
+    requires: ["storeu", "loadu"]
+    includes: ["<cstddef>", "<type_traits>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      using UT = typename std::make_unsigned_t<T>;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false, testing::alternate_init<T>};
+      bool allOk = true;
+      auto ref_data = test_helper.data_ref();
+      auto expected_result = test_helper.result_ref();
+
+      auto test_data = test_helper.data_target();
+      auto test_result = test_helper.result_target();
+      for (size_t i = 0; i < element_count - Vec::vector_element_count(); i+=Vec::vector_element_count()) {
+        for (unsigned shift = 0; shift < sizeof(typename Vec::base_type)*CHAR_BIT; ++shift) {
+          for (size_t j = 0; j < Vec::vector_element_count(); ++j) {
+            expected_result[j] = static_cast<T>(static_cast<UT>(ref_data[i+j]) >> shift);
+          }
+          auto vec = loadu<Vec>(&test_data[i]);
+          storeu<Vec>(test_result, shift_right<Vec, false>(vec, set1<Vec>(shift)));
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+        }
+      }
+      return allOk;
+...
+---
+primitive_name: "shift_right"
+functor_name: "shift_right_imask"
+additional_non_specialized_template_parameters:
+  - ctype: "bool"
+    name: "PreserveSign"
+    default_value: "true"
+brief_description: "Arithmetic shift of data to the right by n bits."
+parameters:
+  - ctype: "const typename Vec::imask_type"
+    name: "data"
+    description: "Data."
+  - ctype: "const unsigned int"
+    name: "shift"
+    description: "Amount of bits, data should be shifted."
+returns:
+  ctype: "typename Vec::imask_type"
+  description: "Integral mask containing result of the left shift."
+definitions:
+  #INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "float", "double"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::imask_type>) && (!PreserveSign)) {
+        return static_cast<std::make_unsigned_t<typename Vec::imask_type>>(data) >> shift;
+      } else {
+        return data >> shift;
+      }
+  #INTEL - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "float", "double"]
+    lscpu_flags: ["avx"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::imask_type>) && (!PreserveSign)) {
+        return static_cast<std::make_unsigned_t<typename Vec::imask_type>>(data) >> shift;
+      } else {
+        return data >> shift;
+      }
+  #INTEL - SSE
+  - target_extension: "sse"
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "float", "double"]
+    lscpu_flags: ["sse"]
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::imask_type>) && (!PreserveSign)) {
+        return static_cast<std::make_unsigned_t<typename Vec::imask_type>>(data) >> shift;
+      } else {
+        return data >> shift;
+      }
+  #SCALAR
+  - target_extension: "scalar"
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "float", "double"]
+    lscpu_flags: []
+    implementation: |
+      if constexpr ((std::is_signed_v<typename Vec::imask_type>) && (!PreserveSign)) {
+        return static_cast<std::make_unsigned_t<typename Vec::imask_type>>(data) >> shift;
+      } else {
+        return data >> shift;
+      }
+...
+---
+primitive_name: "popcnt"
+brief_description: "Population counter."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "data vector."
+returns:
+  ctype: "typename Vec::offset_base_register_type"
+  description: "Vector containing number of bits set to 1."
+definitions:
+#AVX512
+  - target_extension: ["avx512"]
+    ctype: ["uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx512f", "avx512vpopcntdq"]
+    implementation: |
+      return _mm512_popcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["avx512"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t"]
+    lscpu_flags: ["avx512f", "avx512bitalg"]
+    implementation: |
+      return _mm512_popcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["avx512"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::popcount<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+#AVX2
+  - target_extension: ["avx2"]
+    ctype: ["uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx2", "avx512f", "avx512vpopcntdq", "avx512vl"]
+    implementation: |
+      return _mm256_popcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["avx2"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t"]
+    lscpu_flags: ["avx2", "avx512f", "avx512bitalg", "avx512vl"]
+    implementation: |
+      return _mm256_popcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["avx2"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::popcount<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+#SSE
+  - target_extension: ["sse"]
+    ctype: ["uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["sse2", "avx512f", "avx512vpopcntdq", "avx512vl"]
+    implementation: |
+      return _mm_popcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["sse"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t"]
+    lscpu_flags: ["sse2", "avx512f", "avx512bitalg", "avx512vl"]
+    implementation: |
+      return _mm_popcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["sse"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::popcount<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+#NEON
+  - target_extension: ["neon"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["neon"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::popcount<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+#SCALAR
+  - target_extension: ["scalar"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: []
+    is_native: False
+    implementation: |
+      return details::popcount<typename Vec::base_type, typename Vec::offset_base_type>(data);
+...
+---
+primitive_name: "lzc"
+parameters:
+  - ctype: "const typename Vec::base_type"
+    name: "data"
+    description: "Value."
+returns:
+  ctype: "typename Vec::offset_base_type"
+  description: "Number of leading zeros."
+testing:
+  - test_name: "test_zero"
+    includes: ["<cstddef>", "<climits>", "<iostream>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      T data = 0;
+      return lzc<Vec>(data) == (sizeof(T)*CHAR_BIT);
+  - test_name: "test_one"
+    includes: ["<cstddef>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      T data = 1;
+      return lzc<Vec>(data) == (sizeof(T)*CHAR_BIT-1);
+  - test_name: "test_msb"
+    includes: ["<cstddef>", "<climits>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      T data = (T)1 << ((T)sizeof(T)*CHAR_BIT-1);
+      return lzc<Vec>(data) == 0;
+definitions:
+  - target_extension: ["avx512"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      return details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data);
+  - target_extension: ["avx2"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    implementation: |
+      return details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data);
+  - target_extension: ["sse"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse"]
+    implementation: |
+      return details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data);
+  - target_extension: ["neon"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["neon"]
+    implementation: |
+      return details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data);
+  - target_extension: ["scalar"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: |
+      return details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data);
+#INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      return details::clz_recursive<typename Vec::base_type, typename Vec::offset_base_type>::apply(data);
+...
+---
+primitive_name: "lzc"
+functor_name: "lzc_vector"
+brief_description: "Leading zeros counter."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "First vector."
+returns:
+  ctype: "typename Vec::offset_base_register_type"
+  description: "Vector containing leading zeros number."
+definitions:
+  - target_extension: ["avx512"]
+    ctype: ["uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx512f", "avx512cd"]
+    implementation: |
+      return _mm512_lzcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["avx512"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+  - target_extension: ["avx2"]
+    ctype: ["uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx2", "avx512cd", "avx512vl"]
+    implementation: |
+      return _mm256_lzcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["avx2"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+  - target_extension: ["sse"]
+    ctype: ["uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["sse", "avx512cd", "avx512vl"]
+    implementation: |
+      return _mm_lzcnt_epi{{ intrin_tp[ctype][1] }}(data);
+  - target_extension: ["sse"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    is_native: False
+    implementation: |
+      alignas(Vec::vector_alignment()) typename Vec::base_type data_arr[Vec::vector_element_count()];
+      tsl::store<Vec>(data_arr, data);
+      alignas(Vec::vector_alignment()) typename Vec::base_type result[Vec::vector_element_count()];
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        result[i] = details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data_arr[i]);
+      }
+      return tsl::load<Vec>(result);
+  - target_extension: ["scalar"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: []
+    is_native: False
+    implementation: |
+      return details::clz<typename Vec::base_type, typename Vec::offset_base_type>(data);
+  - target_extension: ["oneAPIfpgaRTL"]
+    ctype: ["uint32_t", "int32_t", "float"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    includes: ["<sycl/ext/intel/ac_types/ac_int.hpp>"]
+    vector_length_agnostic: True
+    implementation: |
+      typename Vec::offset_base_register_type result{};
+      typename Vec::offset_base_register_type lzc_data{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        lzc_data[i] = Lzc32Uint(data[i]);
+      }
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+        if(lzc_data[i]>32)
+          result[i] = 32;
+        else
+          result[i] = lzc_data[i];
+      }
+      return result;
+  - target_extension: "oneAPIfpga"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t", "float", "double"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    includes: ["<sycl/ext/intel/ac_types/ac_int.hpp>"]
+    vector_length_agnostic: True
+    implementation: |
+      typename Vec::offset_base_register_type result{};
+      using base_t = typename Vec::base_type;
+      // as the current version of oneAPI does not properly implement ac_int::leading_sign() we "reimplemented" it
+      // /glob/development-tools/versions/oneapi/2023.0.1/oneapi/compiler/2023.0.0/linux/lib/oclfpga/include/sycl/ext/intel/ac_types/ac_int.hpp
+      using bitInt = ac_int<(sizeof(base_t)*CHAR_BIT), false>;
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t idx = 0; idx < Vec::vector_element_count(); idx++) {
+        bitInt val(data[idx]);
+        int k = (sizeof(base_t)*CHAR_BIT)-1;
+        TSL_UNROLL(val[k])
+        for(; k >= 0 && val[k] == 0; k--) {}
+        result[idx] = (sizeof(base_t)*CHAR_BIT-1) - k;
+      }
+      return result;
+...
+---
+primitive_name: "lzc_alt"
+brief_description: "Leading zeros counter."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "First vector."
+returns:
+  ctype: "typename Vec::offset_base_register_type"
+  description: "Vector containing leading zeros number."
+definitions:
+  - target_extension: "oneAPIfpga"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    includes: ["<sycl/ext/intel/ac_types/ac_int.hpp>"]
+    vector_length_agnostic: True
+    specialization_comment: |
+      Calls a recursive function.
+    implementation: |
+      typename Vec::offset_base_register_type result{};
+      using base_t = typename Vec::base_type;
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t idx = 0; idx < Vec::vector_element_count(); idx++) {
+        result[idx] = details::clz_recursive<base_t, typename Vec::offset_base_type>::apply(data[idx]);
+      }
+      return result;
+...
+---
+primitive_name: "lzc_alt1"
+brief_description: "Leading zeros counter."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "First vector."
+returns:
+  ctype: "typename Vec::offset_base_register_type"
+  description: "Vector containing leading zeros number."
+definitions:
+  - target_extension: "oneAPIfpga"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    includes: ["<sycl/ext/intel/ac_types/ac_int.hpp>"]
+    vector_length_agnostic: True
+    specialization_comment: |
+      Resembles the following approach:
+      <code>
+      uint8_t clz_lookup[16] = {4, 3, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0};
+      uint8_t clz_upper_8bit;
+      uint8_t upper_4bit = (val >> 4) & 0xF;
+      uint8_t lower_4bit = val & 0xF;
+      clz_upper_8bit = clz_lookup[upper_4bit] + (clz_lookup[lower_4bit] & (upper_4bit - 1) >> 5);
+      </code>
+      Every n-bit element is recursively halfed and the scheme shown above is applied.
+    implementation: |
+      typename Vec::offset_base_register_type result{};
+      using base_t = typename Vec::base_type;
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t idx = 0; idx < Vec::vector_element_count(); idx++) {
+        {%- set type_size_in_bytes = {
+          "uint8_t" : 1, "int8_t" : 1,
+          "uint16_t": 2, "int16_t": 2,
+          "uint32_t": 4, "int32_t": 4,
+          "uint64_t": 8, "int64_t": 8
+        } -%}
+        {% macro clz_impl(current_byte_size, current_value_name, current_result_name, indentation) %}
+        {% if current_byte_size == 1 %}
+        {% filter indent(width=indentation) +%}
+        uint8_t upper_4bit = ({{ current_value_name }} >> 4) & 0xf;
+        uint8_t lower_4bit = {{ current_value_name }} & 0xf;
+        {{ current_result_name }} = clz_lookup[upper_4bit] + (clz_lookup[lower_4bit] & ((upper_4bit - 1) >> 5));
+        {% endfilter %}
+        {% else %}
+        auto upper_{{ current_byte_size * 4 }}_bit = (uint{{current_byte_size * 8}}_t)(({{ current_value_name }} >> {{ current_byte_size * 4 }})&(0x{{ "f" * (current_byte_size) }}));
+        uint{{current_byte_size * 8}}_t clz_upper_{{ current_byte_size * 4 }}_bit;
+        {% filter indent(width=indentation) +%}
+        {
+        {{ clz_impl(current_byte_size // 2, "upper_" ~ current_byte_size * 4 ~ "_bit", "clz_upper_" ~ current_byte_size * 4 ~ "_bit", indentation) }}
+        }
+        {% endfilter %}
+
+        auto lower_{{ current_byte_size * 4 }}_bit = (uint{{current_byte_size * 8}}_t)({{ current_value_name }}&(0x{{ "f" * (current_byte_size) }}));
+        uint{{current_byte_size * 8}}_t clz_lower_{{ current_byte_size * 4 }}_bit;
+        {% filter indent(width=indentation) +%}
+        {
+        {{ clz_impl(current_byte_size // 2, "lower_" ~ current_byte_size * 4 ~ "_bit", "clz_lower_" ~ current_byte_size * 4 ~ "_bit", indentation) }}
+        }
+        {{ current_result_name }} = (clz_upper_{{ current_byte_size * 4 }}_bit + (clz_lower_{{ current_byte_size * 4 }}_bit & ((upper_{{ current_byte_size * 4 }}_bit - 1) >> {{ current_byte_size * 4 + 1}})));
+        {% endfilter %}
+        {% endif %}
+        {% endmacro %}
+        [[intel::fpga_register]] uint8_t clz_lookup[16] = {4, 3, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        typename Vec::offset_base_type current_result;
+        {% filter indent(width=2) +%}
+        {{ clz_impl(type_size_in_bytes[ctype], "data[idx]", "current_result", 2) }}
+        {% endfilter %}
+        result[idx] = current_result;
+      }
+      return result;
+...
+---
+primitive_name: "lzc_alt2"
+brief_description: "Leading zeros counter."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "First vector."
+returns:
+  ctype: "typename Vec::offset_base_register_type"
+  description: "Vector containing leading zeros number."
+definitions:
+  - target_extension: "oneAPIfpga"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    includes: ["<sycl/ext/intel/ac_types/ac_int.hpp>"]
+    vector_length_agnostic: True
+    specialization_comment: |
+      Resembles the following approach:
+      <code>
+      uint8_t clz_lookup[16] = {4, 3, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0 ,0 ,0 ,0};
+      uint8_t clz_upper_8bit;
+      uint8_t upper_4bit = (val >> 4) & 0xF;
+      uint8_t lower_4bit = val & 0xF;
+      clz_upper_8bit = clz_lookup[upper_4bit] + (clz_lookup[lower_4bit] & ((upper_4bit == 0) ? 0xf : 0);
+      </code>
+      Every n-bit element is recursively halfed and the scheme shown above is applied.
+    implementation: |
+      typename Vec::offset_base_register_type result{};
+      using base_t = typename Vec::base_type;
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t idx = 0; idx < Vec::vector_element_count(); idx++) {
+        {%- set type_size_in_bytes = {
+          "uint8_t" : 1, "int8_t" : 1,
+          "uint16_t": 2, "int16_t": 2,
+          "uint32_t": 4, "int32_t": 4,
+          "uint64_t": 8, "int64_t": 8
+        } -%}
+        {% macro clz_impl(current_byte_size, current_value_name, current_result_name, indentation) %}
+        {% if current_byte_size == 1 %}
+        {% filter indent(width=indentation) +%}
+        uint8_t upper_4bit = ({{ current_value_name }} >> 4) & 0xf;
+        uint8_t lower_4bit = {{ current_value_name }} & 0xf;
+        {{ current_result_name }} = clz_lookup[upper_4bit] + (clz_lookup[lower_4bit] & ((upper_4bit == 0) ? 0xf : 0));
+        {% endfilter %}
+        {% else %}
+        auto upper_{{ current_byte_size * 4 }}_bit = (uint{{current_byte_size * 8}}_t)(({{ current_value_name }} >> {{ current_byte_size * 4 }})&(0x{{ "f" * (current_byte_size) }}));
+        uint{{current_byte_size * 8}}_t clz_upper_{{ current_byte_size * 4 }}_bit;
+        {% filter indent(width=indentation) +%}
+        {
+        {{ clz_impl(current_byte_size // 2, "upper_" ~ current_byte_size * 4 ~ "_bit", "clz_upper_" ~ current_byte_size * 4 ~ "_bit", indentation) }}
+        }
+        {% endfilter %}
+
+        auto lower_{{ current_byte_size * 4 }}_bit = (uint{{current_byte_size * 8}}_t)({{ current_value_name }}&(0x{{ "f" * (current_byte_size) }}));
+        uint{{current_byte_size * 8}}_t clz_lower_{{ current_byte_size * 4 }}_bit;
+        {% filter indent(width=indentation) +%}
+        {
+        {{ clz_impl(current_byte_size // 2, "lower_" ~ current_byte_size * 4 ~ "_bit", "clz_lower_" ~ current_byte_size * 4 ~ "_bit", indentation) }}
+        }
+        {{ current_result_name }} = (clz_upper_{{ current_byte_size * 4 }}_bit + (clz_lower_{{ current_byte_size * 4 }}_bit & ((upper_{{ current_byte_size * 4 }}_bit == 0) ? 0x{{ "ff" * (current_byte_size//2) }} : 0)));
+        {% endfilter %}
+        {% endif %}
+        {% endmacro %}
+        [[intel::fpga_register]] uint8_t clz_lookup[16] = {4, 3, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        typename Vec::offset_base_type current_result;
+        {% filter indent(width=2) +%}
+          {{ clz_impl(type_size_in_bytes[ctype], "data[idx]", "current_result", 2) }}
+        {% endfilter %}
+        result[idx] = current_result;
+      }
+      return result;
+...
+---
+primitive_name: "lzc_alt3"
+brief_description: "Leading zeros counter."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "data"
+    description: "First vector."
+returns:
+  ctype: "typename Vec::offset_base_register_type"
+  description: "Vector containing leading zeros number."
+definitions:
+  - target_extension: "oneAPIfpga"
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    includes: ["<sycl/ext/intel/ac_types/ac_int.hpp>"]
+    vector_length_agnostic: True
+    specialization_comment: |
+      Divide-and-conquer approach to leading zeros counting.
+      Halfes the input recursivly and uses ternary operator to select the correct result.
+      At most, log2(sizeof(ctype))+1 stages (aka compares) are required to produce an output.
+    implementation: |
+      typename Vec::offset_base_register_type result{};
+      using base_t = typename Vec::base_type;
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t idx = 0; idx < Vec::vector_element_count(); idx++) {
+        {%- set type_size_in_bits = {
+          "uint8_t" :  8, "int8_t" :  8,
+          "uint16_t": 16, "int16_t": 16,
+          "uint32_t": 32, "int32_t": 32,
+          "uint64_t": 64, "int64_t": 64
+        } -%}
+        {% macro clz_ternary_impl(value_name, current_bitwidth, current_shift_value) %}
+        ({{ value_name }} & 0x{{ "f" * (current_bitwidth // 8) }}{{ "0" * (current_bitwidth // 8) }}{{ "0" * (current_shift_value//4) }})
+        {% if current_bitwidth == 8 %}?
+          clz_lookup[(({{ value_name }} >> {{current_shift_value + current_bitwidth // 2}}) & 0x{{'f'*(current_bitwidth//8)}})]
+        :
+          {{ current_bitwidth // 2 }} + clz_lookup[(({{ value_name }} >> {{current_shift_value}}) & 0x{{'f'*(current_bitwidth//8)}})]
+        {% else %}
+        ?
+        {% filter indent(width=2) %}
+          (
+        {% filter indent(width=2) %}
+          {{ clz_ternary_impl(value_name, current_bitwidth//2, current_shift_value+current_bitwidth//2) }}
+        {% endfilter%}
+        )
+        {% endfilter%}
+        :
+        {% filter indent(width=2) %}
+          {{ current_bitwidth // 2 }} + (
+        {% filter indent(width=2) %}
+          {{ clz_ternary_impl(value_name, current_bitwidth//2, current_shift_value) }}{% endfilter%}
+        )
+        {% endfilter%}
+        {% endif %}
+        {% endmacro %}
+        [[intel::fpga_register]] uint8_t clz_lookup[16] = {4, 3, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        result[idx] =
+        {% filter indent(width=2) %}
+          {{ clz_ternary_impl("data[idx]", type_size_in_bits[ctype], 0) }};
+        {% endfilter %}
+      }
+      return result;
+...
+---
+primitive_name: "lzc"
+functor_name: "lzc_imask"
+parameters:
+  - ctype: "const typename Vec::imask_type"
+    name: "data"
+    description: "Value."
+returns:
+  ctype: "typename Vec::imask_type"
+  description: "Number of leading zeros."
+definitions:
+  - target_extension: ["avx512"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      return details::clz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["avx2"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    implementation: |
+      return details::clz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["sse"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse2"]
+    implementation: |
+      return details::clz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["neon"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["neon"]
+    implementation: |
+      return details::clz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["scalar"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: |
+      return details::clz<typename Vec::imask_type, typename Vec::imask_type>(data);
+#INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      return details::clz_recursive<typename Vec::imask_type, typename Vec::imask_type>::apply(data);
+...
+---
+primitive_name: "tzc"
+parameters:
+  - ctype: "const typename Vec::imask_type"
+    name: "data"
+    description: "Value."
+returns:
+  ctype: "typename Vec::imask_type"
+  description: "Number of trailing zeros."
+definitions:
+  - target_extension: ["avx512"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx512f"]
+    implementation: |
+      return details::ctz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["avx2"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["avx"]
+    implementation: |
+      return details::ctz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["sse"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["sse"]
+    implementation: |
+      return details::ctz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["neon"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: ["neon"]
+    implementation: |
+      return details::ctz<typename Vec::imask_type, typename Vec::imask_type>(data);
+  - target_extension: ["scalar"]
+    ctype: ["uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: []
+    implementation: |
+      return details::ctz<typename Vec::imask_type, typename Vec::imask_type>(data);
+...
+---
+primitive_name: "hor"
+brief_description: "Operates horizontal OR on vector register"
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "vec"
+    description: "Operating Vector"
+returns:
+  ctype: "typename Vec::base_type"
+  description: "Result of the horizontal OR"
+testing:
+  - test_name: "with_only_zero"
+    requires: ["set1", "loadu", "storeu"]
+    includes: ["<cstddef>"]
+    implementation: |
+        using T = typename Vec::base_type;
+        testing::test_memory_helper_t<Vec> test_helper{1, false};
+        auto reference_result_ptr = test_helper.result_ref();
+        auto test_result_ptr = test_helper.result_target();
+        auto vec = set1<Vec>(0);
+        *reference_result_ptr = 0;
+        *test_result_ptr = hor<Vec>(vec);
+        test_helper.synchronize();
+        return test_helper.validate();
+  - test_name: "with_only_one"
+    requires: ["set1", "loadu", "storeu"]
+    includes: ["<cstddef>"]
+    implementation: |
+        using T = typename Vec::base_type;
+        testing::test_memory_helper_t<Vec> test_helper{1, false};
+        auto reference_result_ptr = test_helper.result_ref();
+        auto test_result_ptr = test_helper.result_target();
+        auto vec = set1<Vec>(1);
+        *reference_result_ptr = 1;
+        *test_result_ptr = hor<Vec>(vec);
+        test_helper.synchronize();
+        return test_helper.validate();
+  - test_name: "with_rand_values"
+    requires: ["loadu", "storeu"]
+    includes: ["<cstddef>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, 1, false};
+      bool allOk = true;
+      auto reference_data_ptr = test_helper.data_ref();
+      auto reference_result_ptr = test_helper.result_ref();
+      auto test_data_ptr = test_helper.data_target();
+      auto test_result_ptr = test_helper.result_target();
+      for(std::size_t i = 0; i < element_count; i += Vec::vector_element_count()){
+        auto vec = loadu<Vec>(&test_data_ptr[i]);
+        if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>){
+          typename std::conditional<std::is_same_v<T, float>, int32_t,
+          typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type result = 0;
+          union {
+              T val;
+              typename std::conditional<std::is_same_v<T, float>, int32_t,
+              typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type i_val;
+            } u;
+          for(size_t j=i; j < i + Vec::vector_element_count(); j++){
+            u.val = reference_data_ptr[j];
+            result |= u.i_val;
+          }
+          u.val = hor<Vec>(vec);
+          allOk &= (result == u.i_val);
+        }
+        else{
+          std::size_t result = 0;
+          for(size_t j=i; j < i + Vec::vector_element_count(); j++){
+          result |= reference_data_ptr[j];
+          }
+          auto vec_result = hor<Vec>(vec);
+          * reference_result_ptr = result;
+          * test_result_ptr = vec_result;
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+        }
+      }
+      return allOk;
+definitions:
+#INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["int8_t", "uint8_t"]
+    lscpu_flags: ['avx512f']
+    implementation: |
+      uint32_t temp = _mm512_reduce_or_epi32(vec);
+      return (temp & 0xFF) | ((temp >> 8) & 0xFF) | ((temp >> 16) & 0xFF) | (temp >> 24);
+
+      /* Generated by ChatGPT
+      Vec::register_type temp = vec;
+      Vec::register_type permuted = _mm512_permutexvar_epi64(_mm512_set_epi64(7, 3, 6, 2, 5, 1, 4, 0), temp);
+      temp = _mm512_or_si512(temp, permuted);
+      Vec::register_type shuffled = _mm512_shuffle_i32x4(temp, temp, _MM_SHUFFLE(1, 0, 3, 2));
+      temp = _mm512_or_si512(temp, shuffled);
+      Vec::register_type shuf = _mm512_set_epi{{intrin_tp[ctype][1]}}(
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0,
+              56, 48, 40, 32, 24, 16, 8, 0
+      );
+      Vec::register_type shuf_result = _mm512_shuffle_epi8(temp, shuf);
+      Vec::register_type or_result = _mm512_or_si512(temp, shuf_result);
+      __m128i low = _mm512_castsi512_si128(or_result);
+      return _mm_extract_epi{{intrin_tp[ctype][1]}}(low, 0);*/
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t"]
+    lscpu_flags: [ 'avx512f' ]
+    implementation: |
+      uint32_t temp = _mm512_reduce_or_epi32(vec);
+      return (temp & 0xFFFF) | (temp >> 16);
+  - target_extension: "avx512"
+    ctype: ["uint32_t", "int32_t", "int64_t", "uint64_t"]
+    lscpu_flags: [ 'avx512f' ]
+    implementation: return _mm512_reduce_or_epi{{intrin_tp[ctype][1]}}(vec);
+  - target_extension: "avx512"
+    ctype: ["float"]
+    lscpu_flags: [ 'avx512f' ]
+    implementation: |
+      union{
+        float val;
+        int32_t i_val;
+      }u;
+      u.i_val = _mm512_reduce_or_epi32(_mm512_castps_si512(vec));
+      return u.val;
+  - target_extension: "avx512"
+    ctype: ["double"]
+    lscpu_flags: [ 'avx512dq' ]
+    implementation: |
+      union{
+        double val;
+        int64_t i_val;
+      }u;
+      u.i_val = _mm512_reduce_or_epi64(_mm512_castpd_si512(vec));
+      return u.val;
+#INTEL - AVX2
+  - target_extension: "avx2"
+    ctype: ["int8_t", "uint8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "int64_t", "uint64_t"]
+    lscpu_flags: [ 'avx2', 'sse2' ]
+    implementation: |
+      //to have all value types in one func, but doesnt work this way for some reason
+      __m128i temp = _mm_or_si128(_mm256_extracti128_si256(vec, 0), _mm256_extracti128_si256(vec, 1));
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 8));
+      {% if ctype != "int64_t" and ctype != "uint64_t" %}
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 4));
+      {% endif %}
+      {% if ctype == "int16_t" or ctype == "uint16_t" %}
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 2));
+      {% endif %}
+      {% if ctype == "int8_t" or ctype == "uint8_t" %}
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 2));
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 1));
+      {% endif %}
+      return _mm_extract_epi{{intrin_tp[ctype][1]}}(temp, 0);
+  - target_extension: "avx2"
+    ctype: ["float"]
+    lscpu_flags: [ 'avx2', 'sse2' ]
+    implementation: |
+      __m256i as_int = _mm256_castps_si256(vec);  //convert to int
+      __m128i temp = _mm_or_si128(_mm256_extracti128_si256(as_int, 0), _mm256_extracti128_si256(as_int, 1));
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 8));
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 4));
+      __m128 as_float = _mm_castsi128_ps(temp);
+      return _mm_cvtss_f32(as_float);
+  - target_extension: "avx2"
+    ctype: ["double"]
+    lscpu_flags: [ 'avx2', 'sse2' ]
+    implementation: |
+      __m256i as_int = _mm256_castpd_si256(vec);  //convert to int
+      __m128i temp = _mm_or_si128(_mm256_extracti128_si256(as_int, 0), _mm256_extracti128_si256(as_int, 1));
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 8));
+      __m128d as_double = _mm_castsi128_pd(temp);
+      return _mm_cvtsd_f64(as_double);
+#INTEL - SSE
+  - target_extension: "sse"
+    ctype: ["uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "uint8_t", "int8_t"]
+    lscpu_flags: [ 'sse2', 'sse4_1' ]
+    implementation: |
+        // Reduce Lanes dependend on datatype
+        Vec::register_type temp = _mm_or_si128(vec, _mm_srli_si128(vec, 8));
+        {% if ctype != "int64_t" and ctype != "uint64_t" %}
+        temp = _mm_or_si128(temp, _mm_srli_si128(temp, 4));
+        {% endif %}
+        {% if ctype == "int16_t" or ctype == "uint16_t" %}
+        temp = _mm_or_si128(temp, _mm_srli_si128(temp, 2));
+        {% endif %}
+        {% if ctype == "int8_t" or ctype == "uint8_t" %}
+        temp = _mm_or_si128(temp, _mm_srli_si128(temp, 2));
+        temp = _mm_or_si128(temp, _mm_srli_si128(temp, 1));
+        {% endif %}
+        return _mm_extract_epi{{intrin_tp[ctype][1]}}(temp, 0);
+  - target_extension: "sse"
+    ctype: ["float"]
+    lscpu_flags: ['sse2']
+    implementation: |
+      __m128i temp = _mm_castps_si128(vec);  //convert to int
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 8));
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 4));
+      __m128 as_float = _mm_castsi128_ps(temp);
+      return _mm_cvtss_f32(as_float);
+  - target_extension: "sse"
+    ctype: ["double"]
+    lscpu_flags: [ 'sse2' ]
+    implementation: |
+      __m128i temp = _mm_castpd_si128(vec);  //convert to int
+      temp = _mm_or_si128(temp, _mm_srli_si128(temp, 8));
+      __m128d as_double = _mm_castsi128_pd(temp);
+      return _mm_cvtsd_f64(as_double);
+#SCALAR
+  - target_extension: "scalar"
+    ctype: [ "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t", "float", "double"]
+    lscpu_flags: [ ]
+    implementation: "return vec;"
+#ARM - NEON
+#INTEL - FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "float", "uint64_t", "int64_t", "double"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      {% import 'core/definition_macro_helper_oneAPI.template' as helpers %}
+      {{ helpers.tree_like_reduce("Vec", "result_vec", "vec", "|") }}
+      return result_vec[Vec::vector_element_count()-2];
+...
+---
+primitive_name: "inv"
+brief_description: "Bitwise invertion values in vector Register."
+parameters:
+  - ctype: "const typename Vec::register_type"
+    name: "vec"
+    description: "Operating Vector"
+returns:
+  ctype: "typename Vec::register_type"
+  description: "Result of the invertion."
+testing:
+  - test_name: "with_only_zero"
+    requires: ["set1", "loadu", "storeu"]
+    includes: ["<cstddef>", "<algorithm>", "<limits>"]
+    implementation: |
+        using T = typename Vec::base_type;
+        testing::test_memory_helper_t<Vec> test_helper{Vec::vector_element_count(), false};
+        auto reference_result_ptr = test_helper.result_ref();
+        auto test_result_ptr = test_helper.result_target();
+        auto vec = set1<Vec>(0);
+        if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>){
+          T data[Vec::vector_element_count()];
+          storeu<Vec>(data, vec);
+          storeu<Vec>(test_result_ptr, inv<Vec>(vec));
+          bool allOk = true;
+          for(int i = 0; i < Vec::vector_element_count(); i ++){
+            union {
+              T f_val;
+              typename std::conditional<std::is_same_v<T, float>, int32_t,
+              typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type i_val;
+            } u;
+            u.f_val = test_result_ptr[i];
+            union {
+              T f_val;
+              typename std::conditional<std::is_same_v<T, float>, int32_t,
+              typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type i_val;
+            } v;
+            v.f_val = data[i];
+            v.i_val = ~v.i_val;
+            allOk &= (u.i_val == v.i_val);
+          }
+          return allOk;
+        }
+        else{
+          storeu<Vec>(reference_result_ptr, ~vec);
+          storeu<Vec>(test_result_ptr, inv<Vec>(vec));
+          test_helper.synchronize();
+          return test_helper.validate();
+        }
+  - test_name: "with_only_ones"
+    requires: ["set1", "loadu", "storeu"]
+    includes: ["<cstddef>", "<algorithm>", "<limits>"]
+    implementation: |
+        using T = typename Vec::base_type;
+        testing::test_memory_helper_t<Vec> test_helper{Vec::vector_element_count(), false};
+        auto reference_result_ptr = test_helper.result_ref();
+        auto test_result_ptr = test_helper.result_target();
+        auto vec = set1<Vec>(~0);
+        if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>){
+          T data[Vec::vector_element_count()];
+          storeu<Vec>(data, vec);
+          storeu<Vec>(test_result_ptr, inv<Vec>(vec));
+          bool allOk = true;
+          for(int i = 0; i < Vec::vector_element_count(); i ++){
+            union {
+              T f_val;
+              typename std::conditional<std::is_same_v<T, float>, int32_t,
+              typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type i_val;
+            } u;
+            u.f_val = test_result_ptr[i];
+            union {
+              T f_val;
+              typename std::conditional<std::is_same_v<T, float>, int32_t,
+              typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type i_val;
+            } v;
+            v.f_val = data[i];
+            v.i_val = ~v.i_val;
+            allOk &= (u.i_val == v.i_val);
+          }
+          return allOk;
+        }
+        else{
+          storeu<Vec>(reference_result_ptr, ~vec);
+          storeu<Vec>(test_result_ptr, inv<Vec>(vec));
+          test_helper.synchronize();
+          return test_helper.validate();
+        }
+  - test_name: "with_rand_values"
+    requires: ["loadu", "storeu"]
+    includes: ["<cstddef>"]
+    implementation: |
+      using T = typename Vec::base_type;
+      std::size_t element_count = 1024;
+      testing::test_memory_helper_t<Vec> test_helper{element_count, Vec::vector_element_count(), false};
+      bool allOk = true;
+      auto reference_data_ptr = test_helper.data_ref();
+      auto reference_result_ptr = test_helper.result_ref();
+      auto test_data_ptr = test_helper.data_target();
+      auto test_result_ptr = test_helper.result_target();
+      for(std::size_t i = 0; i < element_count; i += Vec::vector_element_count()){
+        auto vec = loadu<Vec>(&test_data_ptr[i]);
+        if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>){
+          T data[Vec::vector_element_count()];
+          storeu<Vec>(data, vec);
+          storeu<Vec>(test_result_ptr, inv<Vec>(vec));
+          for(int i = 0; i < Vec::vector_element_count(); i ++){
+            typename std::conditional<std::is_same_v<T, float>, int32_t,
+            typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type test_i_val = 0;
+            union {
+              T val;
+              typename std::conditional<std::is_same_v<T, float>, int32_t,
+              typename std::conditional<std::is_same_v<T, double>, int64_t, void>::type>::type i_val;
+            } u;
+            u.val = test_result_ptr[i];
+            test_i_val = u.i_val;
+
+            u.val = data[i];
+            allOk &= (~u.i_val == test_i_val);
+          }
+        }
+        else{
+          storeu<Vec>(reference_result_ptr, ~vec);
+          storeu<Vec>(test_result_ptr, inv<Vec>(vec));
+          test_helper.synchronize();
+          allOk &= test_helper.validate();
+        }
+      }
+      return allOk;
+definitions:
+#INTEL - AVX512
+  - target_extension: "avx512"
+    ctype: ["uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "uint8_t", "int8_t"]
+    lscpu_flags: [ 'avx512f' ]
+    implementation: |
+      Vec::register_type all_ones = _mm512_set1_epi32(-1);
+      return _mm512_xor_epi32(vec, all_ones);
+  - target_extension: "avx512"
+    ctype: ["float", "double"]
+    lscpu_flags: [ 'avx512f' ]
+    implementation: |
+      __m512i all_ones = _mm512_set1_epi32(-1);
+      __m512i as_int = _mm512_cast{{intrin_tp_full[ctype]}}_si512(vec);
+      return _mm512_castsi512_{{intrin_tp_full[ctype]}}(_mm512_xor_epi32(as_int, all_ones));
+#INTEL - AVX2
+  - target_extension: "avx2"
+    ctype: ["uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "uint8_t", "int8_t"]
+    lscpu_flags: [ 'avx2' ]
+    implementation: |
+      Vec::register_type all_ones = _mm256_set1_epi32(-1);
+      return _mm256_xor_si256(vec, all_ones);
+  - target_extension: "avx2"
+    ctype: ["float", "double"]
+    lscpu_flags: [ 'avx2' ]
+    implementation: |
+      __m256i all_ones = _mm256_set1_epi32(-1);
+      __m256i as_int = _mm256_cast{{intrin_tp_full[ctype]}}_si256(vec);
+      return _mm256_castsi256_{{intrin_tp_full[ctype]}}(_mm256_xor_si256(as_int, all_ones));
+#INTEL - SSE
+  - target_extension: "sse"
+    ctype: ["uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t", "uint8_t", "int8_t"]
+    lscpu_flags: [ 'sse2' ]
+    implementation: |
+      Vec::register_type all_ones = _mm_set1_epi32(-1);
+      return _mm_xor_si128(vec, all_ones);
+  - target_extension: "sse"
+    ctype: ["float", "double"]
+    lscpu_flags: [ 'sse2' ]
+    implementation: |
+      __m128i all_ones = _mm_set1_epi32(-1);
+      __m128i as_int = _mm_cast{{intrin_tp_full[ctype]}}_si128(vec);
+      return _mm_castsi128_{{intrin_tp_full[ctype]}}(_mm_xor_si128(as_int, all_ones));
+#SCALAR
+  - target_extension: "scalar"
+    ctype: [ "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t"]
+    lscpu_flags: [ ]
+    implementation: "return ~vec;"
+  - target_extension: "scalar"
+    ctype: [ "float", "double" ]
+    lscpu_flags: [ ]
+    implementation: |
+      {% if ctype == "float" %}
+      union {
+        float val;
+        int32_t i_val;
+      } u;
+      {% else %}
+      union {
+        double val;
+        int64_t i_val;
+      } u;
+      {% endif %}
+      u.val = vec;
+      u.i_val = ~u.i_val;
+      return u.val;
+  #FPGA
+  - target_extension: ["oneAPIfpga", "oneAPIfpgaRTL"]
+    ctype: ["uint8_t", "int8_t", "uint16_t", "int16_t", "uint32_t", "int32_t", "uint64_t", "int64_t"]
+    lscpu_flags: ["oneAPIfpgaDev"]
+    vector_length_agnostic: True
+    implementation: |
+      using T = typename Vec::register_type;
+      T result{};
+      TSL_UNROLL(Vec::vector_element_count())
+      for(size_t i = 0; i < Vec::vector_element_count(); ++i) {
+          result[i] = ~vec[i];
+      }
+      return result;
+...

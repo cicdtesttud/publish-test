@@ -1,0 +1,22 @@
+{
+  "include": [
+    {
+      "arch": "x86",
+      "specs": [
+        {
+          "name": "SSE",
+          "flags": "sse"
+        }
+      ]
+    },
+    {
+      "arch": "aarch64",
+      "specs": [
+        {
+          "name": "NEON",
+          "flags": "neon"
+        }
+      ]
+    }
+  ]
+}
