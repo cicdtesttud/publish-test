@@ -203,11 +203,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+          path: repository
       
       - name: Download tsl artifacts
         uses: actions/download-artifact@v4
         with:
           name: tsl-artifact
+          path: artifacts
         
       - name: LS
         run: |
@@ -217,3 +219,7 @@ jobs:
         run: |
           rpmbuild --version
           #python3 /package_rpm.py --tsl-folder /tsl --output-folder /output
+
+      - name: LS build
+        run: |
+          ls /root/rpmbuild
