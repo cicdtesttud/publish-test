@@ -343,7 +343,8 @@ jobs:
           DEB_FILE=$(find "${DEB_TMP_OUT_ROOT}" -type f -name '*.deb')
           echo "DEB_FILE: ${DEB_FILE}"
 
-          cd ${PWD}
+          cd $PWD
+          ls -la $PWD
           mkdir -p ${OUT_PATH}
           mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
           ls -la ${OUT_PATH}
