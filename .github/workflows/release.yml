@@ -247,7 +247,9 @@ jobs:
       
       - name: Check install directory
         run: |
+          set -x
           mkdir /tmp/tsl-test
+          SOURCE_ROOT=$(realpath ./artifacts/)
           HARDWARE_PATH=$(${SOURCE_ROOT}/select_flavor.sh ${SOURCE_ROOT})
           echo "HARDWARE_PATH: ${HARDWARE_PATH}"
           tar -xf ${SOURCE_ROOT}/tsl.tar.gz -C /tmp/tsl-test ${HARDWARE_PATH} --strip-components=1
