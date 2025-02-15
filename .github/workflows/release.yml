@@ -345,10 +345,12 @@ jobs:
           mkdir -p ${OUT_PATH}
           mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
           ls -la ${OUT_PATH}
+          echo $(pwd)
       
       - name: Test install
         run: |
           set -x 
+          echo $(pwd)
           echo "OUT_PATH = ${OUT_PATH}"
           ls -la "${OUT_PATH}"
           dpkg -i "${OUT_PATH}/libtsl-dev.deb"
