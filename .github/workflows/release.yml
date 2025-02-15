@@ -336,12 +336,14 @@ jobs:
           chmod +x ${DEB_TMP_OUT_PATH}/select_flavor.sh
           chmod +x ${DEB_TMP_OUT_PATH}/detect_flags.sh
 
+          PWD=$(pwd)
           cd ${DEB_TMP_OUT_PATH}
           dpkg-buildpackage -us -uc
 
           DEB_FILE=$(find "${DEB_TMP_OUT_ROOT}" -type f -name '*.deb')
-          
           echo "DEB_FILE: ${DEB_FILE}"
+
+          cd ${PWD}
           mkdir -p ${OUT_PATH}
           mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
           ls -la ${OUT_PATH}
