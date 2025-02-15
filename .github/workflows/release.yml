@@ -348,6 +348,7 @@ jobs:
       
       - name: Test install
         run: |
+          set -x 
           echo "OUT_PATH = ${OUT_PATH}"
           ls -la "${OUT_PATH}"
           dpkg -i "${OUT_PATH}/libtsl-dev.deb"
