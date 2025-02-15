@@ -213,6 +213,7 @@ jobs:
         
       - name: Prepare specs
         run: |
+          ls /tsl -ahtl
           PWD=$(pwd)
           echo "cwd: ${PWD}"
           ls -ahtl
