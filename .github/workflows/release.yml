@@ -321,6 +321,7 @@ jobs:
       
       - name: Run dpkb-buildpackage
         run: |
+          set -x
           DEB_TMP_OUT_ROOT=$(realpath ./tmp_deb)
           DEB_TMP_OUT_PATH=${DEB_TMP_OUT_ROOT}/libtsl-dev
           mkdir -p ${DEB_TMP_OUT_PATH}
@@ -339,7 +340,8 @@ jobs:
           dpkg-buildpackage -us -uc
 
           DEB_FILE=$(find "${DEB_TMP_OUT_ROOT}" -type f -name '*.deb')
-
+          
+          echo "DEB_FILE: ${DEB_FILE}"
           mkdir -p ${OUT_PATH}
           mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
       
