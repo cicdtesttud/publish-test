@@ -235,7 +235,10 @@ jobs:
 
           rpmbuild -ba "${SPEC_FILE}" --buildroot=/root/rpmbuild/BUILDROOT/ --define "_sourcedir ${SOURCE_ROOT}" --define "_rpmdir ${RPM_TMP_OUT_PATH}" --define "_verbose 1"
           RPM_FILE=$(find "${RPM_TMP_OUT_PATH}" -type f -name '*.rpm')
-          
+          echo "RPM_FILE: ${RPM_FILE}"
+          ls -la "${RPM_FILE}"
+
+          mkdir -p ${OUT_PATH}
           mv "${RPM_FILE}" "${OUT_PATH}/libtsl-dev.rpm"
 
       - name: Test install
