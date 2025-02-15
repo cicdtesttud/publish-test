@@ -257,8 +257,8 @@ jobs:
           echo "HARDWARE_PATH: ${HARDWARE_PATH}"
           tar -xf ${SOURCE_ROOT}/tsl.tar.gz -C /tmp/tsl-test ${HARDWARE_PATH} --strip-components=1
 
-          find /tmp/tsl-test -type f -exec md5sum {} + | sort > ref.md5
-          find /usr/include/tsl -type f -exec md5sum {} + | sort > tst.md5
+          find /tmp/tsl-test -type f -exec md5sum {} + | sed "s| /tmp/tsl-test/ | |" | sort > ref.md5
+          find /usr/include/tsl -type f -exec md5sum {} + | sed "s| /usr/include/tsl/| |" | sort > tst.md5
           diff ref.md5 tst.md5
 
       - name: Compile test programm
