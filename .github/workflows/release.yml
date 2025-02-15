@@ -147,7 +147,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/tsl
-          name: tsl-$consolidated
+          name: tsl-consolidated
 
       - name: Copy relevant files
         run: |
@@ -245,7 +245,7 @@ jobs:
       - name: Compile test programm
         run: |
           g++ -march=native -Wno-ignored-attributes -Wno-attributes -Wdeprecated-declarations -flax-vector-conversions -o test_program repository/.github/workflows/release/test.cpp
-          
+
       - name: Test uninstall
         run: |
           dnf remove -y libtsl-dev
