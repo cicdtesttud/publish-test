@@ -234,12 +234,9 @@ jobs:
           SOURCE_ROOT=$(realpath ./artifacts/)
 
           rpmbuild -ba "${SPEC_FILE}" --buildroot=/root/rpmbuild/BUILDROOT/ --define "_sourcedir ${SOURCE_ROOT}" --define "_rpmdir ${RPM_TMP_OUT_PATH}" --define "_verbose 1"
-          RPM_FNAME=$(find "${RPM_TMP_OUT_PATH}" -type f -name '*.rpm' -exec basename {} \;)
-          ls -l "${RPM_TMP_OUT_PATH}"
-          echo "RPM_FNAME: ${RPM_FNAME}"
-          ls -l "${RPM_TMP_OUT_PATH}/${RPM_FNAME}"
-
-          mv "${RPM_TMP_OUT_PATH}/${RPM_FNAME}" "${OUT_PATH}/libtsl-dev.rpm"
+          RPM_FILE=$(find "${RPM_TMP_OUT_PATH}" -type f -name '*.rpm')
+          
+          mv "${RPM_FILE}" "${OUT_PATH}/libtsl-dev.rpm"
 
       - name: Test install
         run: |
