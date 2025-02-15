@@ -344,6 +344,7 @@ jobs:
           echo "DEB_FILE: ${DEB_FILE}"
           mkdir -p ${OUT_PATH}
           mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
+          ls -la ${OUT_PATH}
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
