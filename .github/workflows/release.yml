@@ -227,16 +227,17 @@ jobs:
       
       - name: Prepare sources
         run: |
-          cp artifacts/tsl.tar.gz /root/rpmbuild/SOURCES/
-          cp artifacts/select_flavor.sh /root/rpmbuild/SOURCES/
-          cp artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
+          cp ${{ github.workspace }}/artifacts/tsl.tar.gz /root/rpmbuild/SOURCES/
+          cp ${{ github.workspace }}/artifacts/select_flavor.sh /root/rpmbuild/SOURCES/
+          cp ${{ github.workspace }}/artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
           chmod +x /root/rpmbuild/SOURCES/select_flavor.sh
           chmod +x /root/rpmbuild/SOURCES/detect_flags.sh
-          mkdir -p artifacts/rpm
+          mkdir -p ${{ github.workspace }}/artifacts/rpm
+          ls /root/rpmbuild/SOURCES
         
       - name: Run rpmbuild
         run: |
-          rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir artifacts/rpm"
+          rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir ${{ github.workspace }}/artifacts/rpm" --define "_verbose 1"
 
       - name: Test install
         run: |

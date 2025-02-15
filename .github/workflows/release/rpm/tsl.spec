@@ -49,4 +49,3 @@ echo "TSL has been installed successfully."
 %postun
 rm -rf %{install_dir}
 echo "TSL has been removed successfully."
-
