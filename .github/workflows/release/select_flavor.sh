@@ -27,7 +27,7 @@ $<< AlternativeMappingsArrayValues >>
 )
 
 
-available_flags=($(./detect_flags.sh))
+available_flags=($(${DETECT_FLAGS_ROOT}/detect_flags.sh))
 
 # Function to check if all values in the predefined flags are present in the flags set from the system
 # first argument are the predefined flags as space separated string

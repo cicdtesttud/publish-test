@@ -252,6 +252,7 @@ jobs:
           SOURCE_ROOT=$(realpath ./artifacts/)
           ls -halt ${SOURCE_ROOT}
           chmod +x ${SOURCE_ROOT}/select_flavor.sh
+          chmod +x ${SOURCE_ROOT}/detect_flags.sh
           HARDWARE_PATH=$(${SOURCE_ROOT}/select_flavor.sh ${SOURCE_ROOT})
           echo "HARDWARE_PATH: ${HARDWARE_PATH}"
           tar -xf ${SOURCE_ROOT}/tsl.tar.gz -C /tmp/tsl-test ${HARDWARE_PATH} --strip-components=1
@@ -277,3 +278,29 @@ jobs:
           compression-level: 9
           overwrite: true
           retention-days: 1
+
+  build-deb-builder-image:
+    name: DEB builder Image (build and push on demand)
+    uses: ./.github/workflows/build_and_push_dockerhub.yml
+    with:
+      context: .
+      path: .github/workflows/docker/package_deb_ubuntu.dockerfile
+      image_name: tsl-package-deb
+      platforms: linux/amd64
+    secrets:
+      dockerhub_username: ${{ vars.DOCKERHUB_USERNAME }}
+      dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+  
+  package-deb:
+    needs: [auto-tag, consolidate-tsl, build-deb-builder-image]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.auto-tag.outputs.tag }}
+      OUT_PATH: ./artifacts/deb
+    container:
+      image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-deb-builder-image.outputs.image_fqname }}:latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
