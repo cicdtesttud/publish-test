@@ -37,12 +37,15 @@ install -m 644 %{SOURCE0} %{buildroot}%{tmp_dir}/tsl.tar.gz
 echo "Detecting the best TSL flavor for your system..." > /dev/console
 %{tmp_dir}/select_flavor.sh %{tmp_dir} --log > /dev/console
 CHOSEN_TSL_PATH=$(%{tmp_dir}/select_flavor.sh %{tmp_dir})
+if [ -z "${CHOSEN_TSL_PATH}" ]; then
+  echo "Error: No valid TSL flavor detected." > /dev/console
+  exit 1
+fi
 echo "Chosen TSL flavor: ${CHOSEN_TSL_PATH}" > /dev/console
-echo "TEST" > /dev/console
 rm -rf %{install_dir}/*
 tar -xf %{tmp_dir}/tsl.tar.gz -C %{install_dir} ${CHOSEN_TSL_PATH} --strip-components=1
 
-rm- rf %{tmp_dir}
+rm -rf %{tmp_dir}
 echo "TSL has been installed successfully."
 
 %postun

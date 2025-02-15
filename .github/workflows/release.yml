@@ -304,3 +304,49 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+
+      - name: Download tsl artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tsl-artifact
+          path: artifacts
+        
+      - name: Prepare specs
+        run: |
+          TIME=$(date +"%a, %d %b %Y %T +0000")
+          sed -i "s/\$<< BUILD_TIME >>/${TIME}/g" repository/.github/workflows/release/deb/debian/changelog
+          sed -i "s/\$<< VERSION_TAG >>/${TAG}/g" repository/.github/workflows/release/deb/debian/control
+      
+      - name: Run dpkb-buildpackage
+        run: |
+          DEB_TMP_OUT_ROOT=$(realpath ./tmp_deb)
+          DEB_TMP_OUT_PATH=${DEB_TMP_OUT_ROOT}/libtsl-dev
+          mkdir -p ${DEB_TMP_OUT_PATH}
+          cp -r ./repository/.github/workflows/release/deb/* ${DEB_TMP_OUT_PATH}
+          cp ./artifacts/tsl.tar.gz ${DEB_TMP_OUT_PATH}/tsl.tar.gz
+          cp ./artifacts/select_flavor.sh ${DEB_TMP_OUT_PATH}/select_flavor.sh
+          cp ./artifacts/detect_flags.sh ${DEB_TMP_OUT_PATH}/detect_flags.sh
+          
+          chmod 755 ${DEB_TMP_OUT_PATH}/debian/postrm
+          chmod 755 ${DEB_TMP_OUT_PATH}/debian/postinst
+          chmod +x ${DEB_TMP_OUT_PATH}/debian/rules
+          chmod +x ${DEB_TMP_OUT_PATH}/select_flavor.sh
+          chmod +x ${DEB_TMP_OUT_PATH}/detect_flags.sh
+
+          cd ${DEB_TMP_OUT_PATH}
+          dpkg-buildpackage -us -uc
+
+          DEB_FILE=$(find "${DEB_TMP_OUT_ROOT}" -type f -name '*.deb')
+
+          mkdir -p ${OUT_PATH}
+          mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
+      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tsl-artifact-deb
+          path: ${{ env.OUT_PATH }}
+          compression-level: 9
+          overwrite: true
+          retention-days: 1
