@@ -228,14 +228,18 @@ jobs:
         
       - name: Run rpmbuild
         run: |
-          RPM_OUT_PATH=$(realpath ${OUT_PATH})
-          mkdir -p ${RPM_OUT_PATH}
+          RPM_TMP_OUT_PATH=$(realpath ./tmp_rpm)
+          mkdir -p ${RPM_TMP_OUT_PATH}
           SPEC_FILE=$(realpath ./repository/.github/workflows/release/rpm/tsl.spec)
           SOURCE_ROOT=$(realpath ./artifacts/)
 
-          rpmbuild -ba "${SPEC_FILE}" --buildroot=/root/rpmbuild/BUILDROOT/ --define "_sourcedir ${SOURCE_ROOT}" --define "_rpmdir ${RPM_OUT_PATH}" --define "_verbose 1"
-          RPM_FNAME=$(find "${RPM_OUT_PATH}" -type f -name '*.rpm' -exec basename {} \;)
-          mv "${RPM_OUT_PATH}/${RPM_FNAME}" "${RPM_OUT_PATH}/libtsl-dev.rpm"
+          rpmbuild -ba "${SPEC_FILE}" --buildroot=/root/rpmbuild/BUILDROOT/ --define "_sourcedir ${SOURCE_ROOT}" --define "_rpmdir ${RPM_TMP_OUT_PATH}" --define "_verbose 1"
+          RPM_FNAME=$(find "${RPM_TMP_OUT_PATH}" -type f -name '*.rpm' -exec basename {} \;)
+          ls -l "${RPM_TMP_OUT_PATH}"
+          echo "RPM_FNAME: ${RPM_FNAME}"
+          ls -l "${RPM_TMP_OUT_PATH}/${RPM_FNAME}"
+
+          mv "${RPM_TMP_OUT_PATH}/${RPM_FNAME}" "${OUT_PATH}/libtsl-dev.rpm"
 
       - name: Test install
         run: |
@@ -249,4 +253,11 @@ jobs:
         run: |
           dnf remove -y libtsl-dev
 
-      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsl-artifact-rpm
+          path: ${{ env.OUT_PATH }}
+          compression-level: 9
+          overwrite: true
+          retention-days: 1
