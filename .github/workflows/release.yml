@@ -42,7 +42,7 @@ jobs:
           
           if [ -z "${LATEST_TAG}" ]; then
             echo "No tag found. Using v0.0.1-rc0 as latest tag."
-            LATEST_TAG=v0.0.1-rc0
+            LATEST_TAG=v0.0.1-rc1
           else
             echo "Latest tag: $LATEST_TAG"
           fi
@@ -196,6 +196,9 @@ jobs:
   package-rpm:
     needs: [auto-tag, consolidate-tsl, build-rpm-builder-image]
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.auto-tag.outputs.tag }}
+      OUT_PATH: ./artifacts/rpm
     container:
       image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-rpm-builder-image.outputs.image_fqname }}:latest
     steps:
@@ -213,12 +216,6 @@ jobs:
         
       - name: Prepare specs
         run: |
-          ls /tsl -ahtl
-          PWD=$(pwd)
-          echo "cwd: ${PWD}"
-          ls -ahtl
-          cp repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
-          TAG="${{ needs.auto-tag.outputs.tag }}"
           if [[ "${TAG}" == *"-"* ]]; then
             VERSION=${TAG%%-*}
             RELEASE=${TAG##*-}
@@ -226,28 +223,23 @@ jobs:
             VERSION=${TAG}
             RELEASE=1
           fi
-          sed -i "s/\$<< VERSION_TAG >>/${VERSION}/g" /root/rpmbuild/SPECS/tsl.spec
-          sed -i "s/\$<< RELEASE_TAG >>/${RELEASE}/g" /root/rpmbuild/SPECS/tsl.spec
-      
-      - name: Prepare sources
-        run: |
-          cp artifacts/tsl.tar.gz /root/rpmbuild/SOURCES/
-          cp artifacts/select_flavor.sh /root/rpmbuild/SOURCES/
-          cp artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
-          chmod +x /root/rpmbuild/SOURCES/select_flavor.sh
-          chmod +x /root/rpmbuild/SOURCES/detect_flags.sh
-          ls /root/rpmbuild/SOURCES
+          sed -i "s/\$<< VERSION_TAG >>/${VERSION}/g" repository/.github/workflows/release/rpm/tsl.spec
+          sed -i "s/\$<< RELEASE_TAG >>/${RELEASE}/g" repository/.github/workflows/release/rpm/tsl.spec
         
       - name: Run rpmbuild
         run: |
-          mkdir -p artifacts/rpm
-          OUT_PATH=./artifacts/rpm
-          rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir ${OUT_PATH}" --define "_verbose 1"
+          RPM_OUT_PATH=$(realpath ${OUT_PATH})
+          mkdir -p ${RPM_OUT_PATH}
+          SPEC_FILE=$(realpath ./repository/.github/workflows/release/rpm/tsl.spec)
+          SOURCE_ROOT=$(realpath ./artifacts/)
+
+          rpmbuild -ba "${SPEC_FILE}" --buildroot=/root/rpmbuild/BUILDROOT/ --define "_sourcedir ${SOURCE_ROOT}" --define "_rpmdir ${RPM_OUT_PATH}" --define "_verbose 1"
+          RPM_FNAME=$(find "${RPM_OUT_PATH}" -type f -name '*.rpm' -exec basename {} \;)
+          mv "${RPM_OUT_PATH}/${RPM_FNAME}" "${RPM_OUT_PATH}/libtsl-dev.rpm"
 
       - name: Test install
         run: |
-          OUT_PATH=./artifacts/rpm
-          dnf install -y $(find ${OUT_PATH} -type f -name '*.rpm')
+          dnf install -y ${OUT_PATH}/libtsl-dev.rpm
       
       - name: Compile test programm
         run: |
@@ -256,3 +248,5 @@ jobs:
       - name: Test uninstall
         run: |
           dnf remove -y libtsl-dev
+
+      
