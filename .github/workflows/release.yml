@@ -323,6 +323,7 @@ jobs:
         run: |
           set -x
           PWD=$(pwd)
+          echo "Currently in ${PWD} (set to PWD)"
 
           DEB_TMP_OUT_ROOT=$(realpath ./tmp_deb)
           DEB_TMP_OUT_PATH=${DEB_TMP_OUT_ROOT}/libtsl-dev
