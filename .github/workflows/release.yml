@@ -348,7 +348,8 @@ jobs:
       
       - name: Test install
         run: |
-          dpkg -i ${OUT_PATH}/libtsl-dev.deb
+          ls -la ${OUT_PATH}
+          dpkg -i "${OUT_PATH}/libtsl-dev.deb"
       
       - name: Check install directory
         run: |
@@ -373,7 +374,7 @@ jobs:
       - name: Test uninstall
         run: |
           dpkg -r libtsl-dev
-          
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         if: always()
