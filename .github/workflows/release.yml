@@ -213,6 +213,11 @@ jobs:
         
       - name: Prepare specs
         run: |
+          ls ${{ github.workspace }}
+          ls ${{ github.workspace }}/repository/
+          ls ${{ github.workspace }}/repository/.github/
+          ls ${{ github.workspace }}/repository/.github/workflows/
+          ls ${{ github.workspace }}/repository/.github/workflows/release/
           cp ${{ github.workspace }}/repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
           TAG="${{ needs.auto-tag.outputs.tag }}"
           if [[ "${TAG}" == *"-"* ]]; then
