@@ -203,17 +203,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-          path: repository
+          path: ${{ github.workspace }}/repository
       
       - name: Download tsl artifacts
         uses: actions/download-artifact@v4
         with:
           name: tsl-artifact
-          path: artifacts
+          path: ${{ github.workspace }}/artifacts
         
       - name: Prepare specs
         run: |
-          cp repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
+          cp ${{ github.workspace }}/repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
           TAG="${{ needs.auto-tag.outputs.tag }}"
           if [[ "${TAG}" == *"-"* ]]; then
             VERSION=${TAG%%-*}
@@ -232,16 +232,16 @@ jobs:
           cp ${{ github.workspace }}/artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
           chmod +x /root/rpmbuild/SOURCES/select_flavor.sh
           chmod +x /root/rpmbuild/SOURCES/detect_flags.sh
-          mkdir -p ${{ github.workspace }}/artifacts/rpm
           ls /root/rpmbuild/SOURCES
         
       - name: Run rpmbuild
         run: |
+          mkdir -p ${{ github.workspace }}/artifacts/rpm
           rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir ${{ github.workspace }}/artifacts/rpm" --define "_verbose 1"
 
       - name: Test install
         run: |
-          dnf install -y $(find artifacts/rpm -type f -name '*.rpm')
+          dnf install -y $(find ${{ github.workspace }}/artifacts/rpm -type f -name '*.rpm')
       
       - name: Compile test programm
         run: |
