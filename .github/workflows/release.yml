@@ -314,6 +314,7 @@ jobs:
       - name: Prepare specs
         run: |
           TIME=$(date +"%a, %d %b %Y %T +0000")
+          ls -halt repository/.github/workflows/release/deb/debian
           sed -i "s/\$<< BUILD_TIME >>/${TIME}/g" repository/.github/workflows/release/deb/debian/changelog
           sed -i "s/\$<< VERSION_TAG >>/${TAG}/g" repository/.github/workflows/release/deb/debian/control
       
