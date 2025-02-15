@@ -203,22 +203,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-          path: ${{ github.workspace }}/repository
+          path: repository
       
       - name: Download tsl artifacts
         uses: actions/download-artifact@v4
         with:
           name: tsl-artifact
-          path: ${{ github.workspace }}/artifacts
+          path: artifacts
         
       - name: Prepare specs
         run: |
-          ls ${{ github.workspace }}
-          ls ${{ github.workspace }}/repository/
-          ls ${{ github.workspace }}/repository/.github/
-          ls ${{ github.workspace }}/repository/.github/workflows/
-          ls ${{ github.workspace }}/repository/.github/workflows/release/
-          cp ${{ github.workspace }}/repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
+          PWD=$(pwd)
+          echo "cwd: ${PWD}"
+          ls -ahtl
+          cp repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
           TAG="${{ needs.auto-tag.outputs.tag }}"
           if [[ "${TAG}" == *"-"* ]]; then
             VERSION=${TAG%%-*}
@@ -232,21 +230,23 @@ jobs:
       
       - name: Prepare sources
         run: |
-          cp ${{ github.workspace }}/artifacts/tsl.tar.gz /root/rpmbuild/SOURCES/
-          cp ${{ github.workspace }}/artifacts/select_flavor.sh /root/rpmbuild/SOURCES/
-          cp ${{ github.workspace }}/artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
+          cp artifacts/tsl.tar.gz /root/rpmbuild/SOURCES/
+          cp artifacts/select_flavor.sh /root/rpmbuild/SOURCES/
+          cp artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
           chmod +x /root/rpmbuild/SOURCES/select_flavor.sh
           chmod +x /root/rpmbuild/SOURCES/detect_flags.sh
           ls /root/rpmbuild/SOURCES
         
       - name: Run rpmbuild
         run: |
-          mkdir -p ${{ github.workspace }}/artifacts/rpm
-          rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir ${{ github.workspace }}/artifacts/rpm" --define "_verbose 1"
+          mkdir -p artifacts/rpm
+          OUT_PATH=./artifacts/rpm
+          rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir ${OUT_PATH}" --define "_verbose 1"
 
       - name: Test install
         run: |
-          dnf install -y $(find ${{ github.workspace }}/artifacts/rpm -type f -name '*.rpm')
+          OUT_PATH=./artifacts/rpm
+          dnf install -y $(find ${OUT_PATH} -type f -name '*.rpm')
       
       - name: Compile test programm
         run: |
