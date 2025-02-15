@@ -1,10 +1,12 @@
 #!/bin/bash
 
-LOG=$1
+PWD=$(pwd)
+DETECT_FLAGS_ROOT=${1:-PWD}
+LOG=$2
 
 do_log() {
   if [[ $LOG == "--log" ]]; then
-    echo $1 >> install.log
+    echo "$1" >> select_flavor.log
   fi
 }
 

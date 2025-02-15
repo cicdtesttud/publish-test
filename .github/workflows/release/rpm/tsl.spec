@@ -1,90 +1,52 @@
 Name:           libtsl-dev
-Version:        ${{ VERSION_TAG }}
-Release:        ${{ RELEASE_TAG }}
+Version:        $<< VERSION_TAG >>
+Release:        $<< RELEASE_TAG >>
 Summary:        Template SIMD Library (TSL) is an open-source C++ library for SIMD programming. It provides a comprehensive collection of SIMD intrinsics and high-level interfaces to exploit the full power of SIMD hardware.
 BuildArch:      noarch
 
 License:        Apache License, Version 2.0
 URL:            https://github.com/db-tu-dresden/TSL
-Source0:        ${{ TSL_TARBALL }}
+Source0:        tsl.tar.gz
+Source1:        detect_flags.sh
+Source2:        select_flavor.sh
 
-Requires:       util-linux tar gzip grep sed
+Requires:       util-linux tar gzip which
 
-%global include_dir /usr/include
-%global tsl_dir_name tsl
-%global tsl_dir %{include_dir}/%{tsl_dir_name}
-%global tsl_hollistic_name __hollistic
-%global tsl_hollistic_dir %{tsl_dir}/%{tsl_hollistic_name}
+%global install_dir %{_includedir}/tsl
+%global tmp_dir %{_tmppath}/tsl
 
 %description
-
-%post
-LSCPU_FLAGS_STRING=$(LANG=en;lscpu | grep 'Flags:' | sed -E 's/Flags:\s*//g' | sed -E 's/\s/:/g')
-AVAIL_FLAGS=(${LSCPU_FLAGS_STRING//:/ })
-MAX_AVAIL_FLAGS=0
-CHOSEN_TSL_PATH=""
-UNKNOWN_PATH="unknown"
-while read -r line1 && read -r line2; do
-  #remove prefix "flags: " from line1
-  TSL_FLAGS_STR=${line1#flags: }
-  #create array from flags string
-  TSL_FLAGS_ARR=(${TSL_FLAGS_STR//:/ })
-  #remove prefix "path: " from line1
-  TSL_PATH=${line2#path: }
-
-  #if TSL_FLAGS_STR equals "UNKNOWN" then set TSL_FLAGS_ARR to "UNKNOWN"
-  if [ "$TSL_FLAGS_STR" == "$UNKNOWN_PATH" ]; then
-    UNKNOWN_PATH=$TSL_PATH
-  fi
-  COUNTER=0
-  FOUND_ALL_FLAGS=1
-  for i in "${!TSL_FLAGS_ARR[@]}"
-  do
-    FOUND_FLAG=0
-    for j in "${!AVAIL_FLAGS[@]}"
-    do
-      if [ "${TSL_FLAGS_ARR[i]}" == "${AVAIL_FLAGS[j]}" ]; then
-        FOUND_FLAG=1
-        COUNTER=$((COUNTER+1))
-      fi
-    done
-    if [ $FOUND_FLAG -eq 0 ]; then
-      FOUND_ALL_FLAGS=0
-      break
-    fi
-  done
-  if [ $COUNTER -gt $MAX_AVAIL_FLAGS ] && [ $FOUND_ALL_FLAGS -eq 1 ]; then
-    MAX_AVAIL_FLAGS=$COUNTER
-    CHOSEN_TSL_PATH=${TSL_PATH}
-  fi
-done < %{tsl_hollistic_dir}/tsl/tsl.conf
-if [ "$MAX_AVAIL_FLAGS" -eq "0" ]; then
-  echo "No suitable extension found on this CPU. Falling back to scalar."
-  CHOSEN_TSL_PATH=$UNKNOWN_PATH
-fi
-
-TMP=$(mktemp -ud %{_tmppath}/%{name}-XXXXXX)
-mkdir -p ${TMP}
-tar -xf %{tsl_hollistic_dir}/${{ TSL_TARBALL }} -C ${TMP} ${{ TSL_TARBALL_PREFIX }}${CHOSEN_TSL_PATH}
-cp -r ${TMP}/${{ TSL_TARBALL_PREFIX }}${CHOSEN_TSL_PATH}/include %{tsl_dir}
-if [ -d "${TMP}/${{ TSL_TARBALL_PREFIX }}${CHOSEN_TSL_PATH}/supplementary" ]; then
-  cp -r ${TMP}/${{ TSL_TARBALL_PREFIX }}${CHOSEN_TSL_PATH}/supplementary %{tsl_dir}
-fi
-cp ${TMP}/${{ TSL_TARBALL_PREFIX }}${CHOSEN_TSL_PATH}/tsl.hpp %{tsl_dir}
-
-
-%postun
-rm -rf %{tsl_dir}
+Header-only library TSL (Template SIMD Library) provides a comprehensive collection of SIMD intrinsics and high-level interfaces to exploit the full power of SIMD hardware. It is designed to be used in a wide range of applications, such as image processing, computer graphics, computer vision, machine learning, and scientific computing.
 
 %install
-rm -rf %{buildroot}/*
-umask 0022
-mkdir -p %{buildroot}%{tsl_hollistic_dir}
-cp -a /root/rpmbuild/SOURCES/${{ TSL_TARBALL }} %{buildroot}%{tsl_hollistic_dir}/
-tar -xf %{buildroot}%{tsl_hollistic_dir}/${{ TSL_TARBALL }} -C %{buildroot}%{tsl_hollistic_dir} tsl/tsl.conf
-
-%clean
-
+mkdir -p %{buildroot}%{install_dir}
+mkdir -p %{buildroot}%{tmp_dir}
+ls -l %{buildroot}%{tmp_dir}
+ls -l %{_sourcedir}
+install -m 755 %{SOURCE2} %{buildroot}%{tmp_dir}/select_flavor.sh
+install -m 755 %{SOURCE1} %{buildroot}%{tmp_dir}/detect_flags.sh
+install -m 644 %{SOURCE0} %{buildroot}%{tmp_dir}/tsl.tar.gz
 
 %files
-%{tsl_hollistic_dir}
+%dir %{install_dir}
+%dir %{tmp_dir}
+%{tmp_dir}/select_flavor.sh
+%{tmp_dir}/detect_flags.sh
+%{tmp_dir}/tsl.tar.gz
+
+%post
+echo "Detecting the best TSL flavor for your system..." > /dev/console
+%{tmp_dir}/select_flavor.sh %{tmp_dir} --log > /dev/console
+CHOSEN_TSL_PATH=$(%{tmp_dir}/select_flavor.sh %{tmp_dir})
+echo "Chosen TSL flavor: ${CHOSEN_TSL_PATH}" > /dev/console
+echo "TEST" > /dev/console
+rm -rf %{install_dir}/*
+tar -xf %{tmp_dir}/tsl.tar.gz -C %{install_dir} ${CHOSEN_TSL_PATH} --strip-components=1
+
+rm- rf %{tmp_dir}
+echo "TSL has been installed successfully."
+
+%postun
+rm -rf %{install_dir}
+echo "TSL has been removed successfully."
+

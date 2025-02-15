@@ -124,7 +124,7 @@ jobs:
           compression-level: 9
     
   consolidate-tsl:
-    needs: [define-targets, auto-tag, run-generation]
+    needs: [run-generation]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 
@@ -136,7 +136,7 @@ jobs:
       - name: Merge tsl flavors
         uses: actions/upload-artifact/merge@v4
         with:
-          name: tsl-${{ needs.auto-tag.outputs.tag }}
+          name: tsl-consolidated
           pattern: tsl-*
           separate-directories: true
           delete-merged: true
@@ -147,7 +147,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/tsl
-          name: tsl-${{ needs.auto-tag.outputs.tag }}
+          name: tsl-$consolidated
 
       - name: Copy relevant files
         run: |
@@ -194,7 +194,7 @@ jobs:
       dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
 
   package-rpm:
-    needs: [consolidate-tsl, build-rpm-builder-image]
+    needs: [auto-tag, consolidate-tsl, build-rpm-builder-image]
     runs-on: ubuntu-latest
     container:
       image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-rpm-builder-image.outputs.image_fqname }}:latest
@@ -211,15 +211,41 @@ jobs:
           name: tsl-artifact
           path: artifacts
         
-      - name: LS
+      - name: Prepare specs
         run: |
-          ls -la
+          cp repository/.github/workflows/release/rpm/tsl.spec /root/rpmbuild/SPECS/
+          TAG="${{ needs.auto-tag.outputs.tag }}"
+          if [[ "${TAG}" == *"-"* ]]; then
+            VERSION=${TAG%%-*}
+            RELEASE=${TAG##*-}
+          else
+            VERSION=${TAG}
+            RELEASE=1
+          fi
+          sed -i "s/\$<< VERSION_TAG >>/${VERSION}/g" /root/rpmbuild/SPECS/tsl.spec
+          sed -i "s/\$<< RELEASE_TAG >>/${RELEASE}/g" /root/rpmbuild/SPECS/tsl.spec
+      
+      - name: Prepare sources
+        run: |
+          cp artifacts/tsl.tar.gz /root/rpmbuild/SOURCES/
+          cp artifacts/select_flavor.sh /root/rpmbuild/SOURCES/
+          cp artifacts/detect_flags.sh /root/rpmbuild/SOURCES/
+          chmod +x /root/rpmbuild/SOURCES/select_flavor.sh
+          chmod +x /root/rpmbuild/SOURCES/detect_flags.sh
+          mkdir -p artifacts/rpm
         
-      - name: Prepare RPM
+      - name: Run rpmbuild
         run: |
-          rpmbuild --version
-          #python3 /package_rpm.py --tsl-folder /tsl --output-folder /output
+          rpmbuild -bb /root/rpmbuild/SPECS/tsl.spec --buildroot=/root/rpmbuild/BUILDROOT/ --define "_rpmdir artifacts/rpm"
 
-      - name: LS build
+      - name: Test install
         run: |
-          ls /root/rpmbuild
+          dnf install -y $(find artifacts/rpm -type f -name '*.rpm')
+      
+      - name: Compile test programm
+        run: |
+          g++ -march=native -Wno-ignored-attributes -Wno-attributes -Wdeprecated-declarations -flax-vector-conversions -o test_program repository/.github/workflows/release/test.cpp
+          
+      - name: Test uninstall
+        run: |
+          dnf remove -y libtsl-dev
