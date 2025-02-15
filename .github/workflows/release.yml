@@ -322,6 +322,8 @@ jobs:
       - name: Run dpkb-buildpackage
         run: |
           set -x
+          PWD=$(pwd)
+
           DEB_TMP_OUT_ROOT=$(realpath ./tmp_deb)
           DEB_TMP_OUT_PATH=${DEB_TMP_OUT_ROOT}/libtsl-dev
           mkdir -p ${DEB_TMP_OUT_PATH}
@@ -336,7 +338,7 @@ jobs:
           chmod +x ${DEB_TMP_OUT_PATH}/select_flavor.sh
           chmod +x ${DEB_TMP_OUT_PATH}/detect_flags.sh
 
-          PWD=$(pwd)
+          
           cd ${DEB_TMP_OUT_PATH}
           dpkg-buildpackage -us -uc
 
@@ -345,10 +347,9 @@ jobs:
 
           cd $PWD
           ls -la $PWD
-          mkdir -p ${OUT_PATH}
-          mv "${DEB_FILE}" "${OUT_PATH}/libtsl-dev.deb"
-          ls -la ${OUT_PATH}
-          echo $(pwd)
+          mkdir -p ${PWD}/${OUT_PATH}
+          mv "${DEB_FILE}" "${PWD}/${OUT_PATH}/libtsl-dev.deb"
+          ls -la ${PWD}/${OUT_PATH}
       
       - name: Test install
         run: |
