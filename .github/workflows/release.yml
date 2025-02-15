@@ -322,8 +322,8 @@ jobs:
       - name: Run dpkb-buildpackage
         run: |
           set -x
-          PWD=$(pwd)
-          echo "Currently in ${PWD} (set to PWD)"
+          CWD=$(pwd)
+          echo "Currently in ${CWD} (set to CWD)"
 
           DEB_TMP_OUT_ROOT=$(realpath ./tmp_deb)
           DEB_TMP_OUT_PATH=${DEB_TMP_OUT_ROOT}/libtsl-dev
@@ -346,9 +346,13 @@ jobs:
           DEB_FILE=$(find "${DEB_TMP_OUT_ROOT}" -type f -name '*.deb')
           echo "DEB_FILE: ${DEB_FILE}"
 
-          cd $PWD
-          ls -la $PWD
-          mkdir -p ${PWD}/${OUT_PATH}
+          echo "Current directory: $(pwd)"
+          echo "Change to ${CWD}"
+          cd $CWD
+          ls -la $CWD
+          echo "Creating directory ${CWD}/${OUT_PATH}"
+          mkdir -p ${CWD}/${OUT_PATH}
+          echo "Moving ${DEB_FILE} to ${CWD}/${OUT_PATH}/libtsl-dev.deb"
           mv "${DEB_FILE}" "${PWD}/${OUT_PATH}/libtsl-dev.deb"
           ls -la ${PWD}/${OUT_PATH}
       
@@ -393,3 +397,15 @@ jobs:
           compression-level: 9
           overwrite: true
           retention-days: 1
+  
+  build-brew-builder-image:
+    name: HomeBrew builder Image (build and push on demand)
+    uses: ./.github/workflows/build_and_push_dockerhub.yml
+    with:
+      context: .
+      path: .github/workflows/docker/package_brew_archlinux.dockerfile
+      image_name: tsl-package-brew
+      platforms: linux/amd64
+    secrets:
+      dockerhub_username: ${{ vars.DOCKERHUB_USERNAME }}
+      dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
