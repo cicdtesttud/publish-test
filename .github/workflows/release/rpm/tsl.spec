@@ -22,7 +22,6 @@ Header-only library TSL (Template SIMD Library) provides a comprehensive collect
 mkdir -p %{buildroot}%{install_dir}
 mkdir -p %{buildroot}%{tmp_dir}
 ls -l %{buildroot}%{tmp_dir}
-ls -l %{_sourcedir}
 install -m 755 %{SOURCE2} %{buildroot}%{tmp_dir}/select_flavor.sh
 install -m 755 %{SOURCE1} %{buildroot}%{tmp_dir}/detect_flags.sh
 install -m 644 %{SOURCE0} %{buildroot}%{tmp_dir}/tsl.tar.gz
