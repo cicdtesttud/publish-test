@@ -245,6 +245,17 @@ jobs:
         run: |
           dnf install -y ${OUT_PATH}/libtsl-dev.rpm
       
+      - name: Check install directory
+        run: |
+          mkdir /tmp/tsl-test
+          HARDWARE_PATH=$(${SOURCE_ROOT}/select_flavor.sh ${SOURCE_ROOT})
+          echo "HARDWARE_PATH: ${HARDWARE_PATH}"
+          tar -xf ${SOURCE_ROOT}/tsl.tar.gz -C /tmp/tsl-test ${HARDWARE_PATH} --strip-components=1
+
+          find /tmp/tsl-test -type f -exec md5sum {} + | sort > ref.md5
+          find /usr/include/tsl -type f -exec md5sum {} + | sort > tst.md5
+          diff ref.md5 tst.md5
+
       - name: Compile test programm
         run: |
           g++ -march=native -Wno-ignored-attributes -Wno-attributes -Wdeprecated-declarations -flax-vector-conversions -o test_program repository/.github/workflows/release/test.cpp
