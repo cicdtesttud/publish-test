@@ -136,7 +136,7 @@ jobs:
       - name: Merge tsl flavors
         uses: actions/upload-artifact/merge@v4
         with:
-          name: tsl-consolidated
+          name: libtsl-dev
           pattern: tsl-*
           separate-directories: true
           delete-merged: true
@@ -147,7 +147,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/tsl
-          name: tsl-consolidated
+          name: libtsl-dev
 
       - name: Copy relevant files
         run: |
@@ -479,7 +479,7 @@ jobs:
       - name: Merge tsl flavors
         uses: actions/upload-artifact/merge@v4
         with:
-          name: tsl-release-${{ env.TAG }}
+          name: libtsl-dev
           pattern: tsl-artifact*
           separate-directories: true
           delete-merged: true
@@ -488,7 +488,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tsl-release-${{ env.TAG }}
+          name: libtsl-dev
       - name: Tree
         run: |
           tree .
@@ -504,3 +504,12 @@ jobs:
           find tsl-artifact* -type f -exec mv {} upload/ \;
           rm -rf "tsl-artifact*"
 
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libtsl-dev
+          path: upload
+          compression-level: 9
+          overwrite: true
+          retention-days: 1
