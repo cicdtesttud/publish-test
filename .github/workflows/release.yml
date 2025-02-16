@@ -161,10 +161,10 @@ jobs:
             --install-sh ${{ github.workspace }}/release/select_flavor.sh \
             --folder-prefix "tsl" \
             --targets-spec-file repository/.github/workflows/target_specs.json \
-            --tsl-folder-ph "\$<< TslFolderArrayValues >>" \
-            --default-flags-array-ph "\$<< DefaultFlagsArrayValues >>" \
-            --alt-flags-array-ph "\$<< AlternativeFlagsArrayValues >>" \
-            --alt-to-tsl-mapping-ph "\$<< AlternativeMappingsArrayValues >>"
+            --tsl-folder-ph "$<< TslFolderArrayValues >>" \
+            --default-flags-array-ph "$<< DefaultFlagsArrayValues >>" \
+            --alt-flags-array-ph "$<< AlternativeFlagsArrayValues >>" \
+            --alt-to-tsl-mapping-ph "$<< AlternativeMappingsArrayValues >>"
 
       - name: Tarball tsl
         run: |
@@ -223,8 +223,8 @@ jobs:
             VERSION=${TAG}
             RELEASE=1
           fi
-          sed -i "s/\$<< VERSION_TAG >>/${VERSION}/g" repository/.github/workflows/release/rpm/tsl.spec
-          sed -i "s/\$<< RELEASE_TAG >>/${RELEASE}/g" repository/.github/workflows/release/rpm/tsl.spec
+          sed -i "s/$<< VERSION_TAG >>/${VERSION}/g" repository/.github/workflows/release/rpm/tsl.spec
+          sed -i "s/$<< RELEASE_TAG >>/${RELEASE}/g" repository/.github/workflows/release/rpm/tsl.spec
         
       - name: Run rpmbuild
         run: |
@@ -316,8 +316,8 @@ jobs:
         run: |
           TIME=$(date +"%a, %d %b %Y %T +0000")
           ls -halt repository/.github/workflows/release/deb/debian
-          sed -i "s/\$<< BUILD_TIME >>/${TIME}/g" repository/.github/workflows/release/deb/debian/changelog
-          sed -i "s/\$<< VERSION_TAG >>/${TAG}/g" repository/.github/workflows/release/deb/debian/control
+          sed -i "s/$<< BUILD_TIME >>/${TIME}/g" repository/.github/workflows/release/deb/debian/changelog
+          sed -i "s/$<< VERSION_TAG >>/${TAG}/g" repository/.github/workflows/release/deb/debian/control
       
       - name: Run dpkb-buildpackage
         run: |
