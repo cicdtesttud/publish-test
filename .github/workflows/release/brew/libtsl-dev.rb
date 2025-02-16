@@ -3,7 +3,7 @@ class LibtslDev < Formula
   homepage "https://github.com/db-tu-dresden/TSL"
   url "file:///tsl/brew/libtsl-dev.tar.gz"
   sha256 "\$<< SHA256 >>"
-  version "\$<< VERSION >>"
+  version "\$<< VERSION_TAG >>"
   license "Apache-2.0"
 
   def install
