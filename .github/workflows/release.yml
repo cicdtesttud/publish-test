@@ -409,3 +409,50 @@ jobs:
     secrets:
       dockerhub_username: ${{ vars.DOCKERHUB_USERNAME }}
       dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+  
+  package-brew:
+    needs: [auto-tag, consolidate-tsl, build-brew-builder-image]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.auto-tag.outputs.tag }}
+      OUT_PATH: ./artifacts/brew
+    container:
+      image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-brew-builder-image.outputs.image_fqname }}:latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: repository
+
+      - name: Download tsl artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tsl-artifact
+          path: artifacts
+      
+      - name: Prepare installation
+        run: |
+          ABS_OUT_PATH=$(realpath ${OUT_PATH})
+          ARTIFACTS_PATH=$(realpath ./artifacts)
+          REPOSITORY=$(realpath ./repository)
+          BREW_INST=${ABS_OUT_PATH}/brew
+          mkdir -p ${BREW_INST}
+          tar -czf "${BREW_INST}/libtsl-dev.tar.gz" -C  "${ARTIFACTS_PATH}" $(find "${ARTIFACTS_PATH}" -type f -exec basename {} \;) --strip-components=1
+          cp "${REPOSITORY}/.github/workflows/release/brew/libtsl-dev.rb" "${BREW_INST}/libtsl-dev.rb"
+          SHA256=$(shasum -a 256 "${BREW_INST}/libtsl-dev.tar.gz" | cut -f 1 -d ' ')
+          sed -i "s/\$<< SHA256 >>/${SHA256}/g" "${BREW_INST}/libtsl-dev.rb"
+          sed -i "s/\$<< VERSION_TAG >>/${TAG}/g" "${BREW_INST}/libtsl-dev.rb"
+
+          cd "${BREW_INST}"
+          brew install --build-bottle ./libtsl-dev.rb
+      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tsl-artifact-brew
+          path: ${{ env.OUT_PATH }}/brew
+          compression-level: 9
+          overwrite: true
+          retention-days: 1

@@ -1,7 +1,7 @@
 FROM archlinux:latest
 
 RUN pacman --noconfirm -Syu && \
-    pacman --noconfirm -S git base-devel go which
+    pacman --noconfirm -S git base-devel go which ruby ruby-erb
 
 # Create a non-root user for using yay safely
 RUN useradd -m auruser && \
