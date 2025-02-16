@@ -488,6 +488,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tsl-release-${{ env.TAG }}
+      - name: Tree
+        run: |
+          tree .
       - name: Consolidate
         run: |
           mkdir upload
