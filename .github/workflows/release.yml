@@ -497,6 +497,10 @@ jobs:
           mkdir upload
           ls -halt
           ls tsl-artifact*
-          find "./tsl-artifact*" -type f -exec mv {} upload/ \;
+          echo "CWD: $(pwd)"
+          echo "executing find"
+          find tsl-artifact* -type f
+          echo "executing find again"
+          find tsl-artifact* -type f -exec mv {} upload/ \;
           rm -rf "tsl-artifact*"
 
