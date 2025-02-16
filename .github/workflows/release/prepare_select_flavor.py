@@ -29,7 +29,8 @@ def main(
   install_sh: Path, 
   prefix: str, targets_spec_file: Path,
   tsl_folder_ph: str, default_flags_ph: str,
-  alt_flags_ph: str, mapping_ph: str
+  alt_flags_ph: str, mapping_ph: str,
+  generic_fallback_ph: str
 ):
   with open(targets_spec_file, 'r') as f:
     data: Dict[str, Any] = json.loads(f.read())
@@ -38,9 +39,13 @@ def main(
   default_flags: List[str] = []
   alternative_flags: List[str] = []
   alternative_mappings: List[str] = []
+  generic_fallback: str = ''
   for architecture, specs in data.items():
     print(f"Architecture: {architecture}")
     for spec in specs:
+      if architecture == 'generic' and spec['name'] == 'scalar':
+        generic_fallback = f"{prefix}-{architecture}-{spec['name']}"
+        continue
       folder_name: str = f"{prefix}-{architecture}-{spec['name']}"
       tsl_folders.append(f'  "{folder_name}"')
       flags_list: List[str] = flags_str_to_list(spec['flags'])
@@ -56,6 +61,7 @@ def main(
   install_sh_content = install_sh_content.replace(default_flags_ph, '\n'.join(default_flags))
   install_sh_content = install_sh_content.replace(alt_flags_ph, '\n'.join(alternative_flags))
   install_sh_content = install_sh_content.replace(mapping_ph, '\n'.join(alternative_mappings))
+  install_sh_content = install_sh_content.replace(generic_fallback_ph, f'"{generic_fallback}"')
   with open(install_sh, 'w') as f:
     f.write(install_sh_content)
 
@@ -68,7 +74,9 @@ if __name__ == '__main__':
   parser.add_argument('--default-flags-array-ph', help='Name of placeholder for default flags array values', required=True, type=str, dest='default_flags_ph')
   parser.add_argument('--alt-flags-array-ph', help='Name of placeholder for alternative flags array values', required=True, type=str, dest='alt_flags_ph')
   parser.add_argument('--alt-to-tsl-mapping-ph', help='Name of placeholder for alternative to tsl-folder mapping values', required=True, type=str, dest='mapping_ph')
+  parser.add_argument('--generic-fallback-ph', help='Name of placeholder for generic fallback value', required=True, type=str, dest='generic_fallback_ph')
   args = parser.parse_args()
   main(args.install_sh, args.prefix, args.specs_file,
        args.tsl_folder_ph, args.default_flags_ph,
-       args.alt_flags_ph, args.mapping_ph)
+       args.alt_flags_ph, args.mapping_ph,
+       args.generic_fallback_ph)

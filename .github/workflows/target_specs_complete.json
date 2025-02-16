@@ -1,4 +1,10 @@
 {
+  "generic": [
+      {
+          "name": "unknown",
+          "flags": "NOSIMD-INVALID"
+      }
+  ],
   "x86": [
       {
           "name": "SSE",

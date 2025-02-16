@@ -26,6 +26,7 @@ alternative_mappings=(
 $<< AlternativeMappingsArrayValues >>
 )
 
+generic_fallback=$<< GenericFallback >>
 
 available_flags=($(${DETECT_FLAGS_ROOT}/detect_flags.sh))
 
@@ -129,8 +130,13 @@ best_match_alt=$(find_best_alternative_match)
 read -r max_overlap best_idx <<< "$best_match"
 read -r max_overlap_alt best_idx_alt <<< "$best_match_alt"
 
+if ((max_overlap == -1)) && ((max_overlap_alt == -1)); then
+  echo "${generic_fallback}"
+  exit 0
+fi
 if ((max_overlap > max_overlap_alt)); then
   echo ${tsl_folders[$best_idx]}
 else
   echo ${alternative_mappings[$best_idx_alt]}
 fi
+exit 0
