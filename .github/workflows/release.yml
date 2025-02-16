@@ -454,6 +454,9 @@ jobs:
 
           cd "${BREW_INST}"
           brew install --build-bottle ./libtsl-dev.rb
+
+          echo "LS ${{ env.OUT_PATH }}/brew"
+          ls -la ${{ env.OUT_PATH }}/brew
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -484,6 +487,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tsl-release-${{ env.TAG }}
-      - name: Tree
+      - name: Consolidate
         run: |
-          tree .
+          mkdir upload
+          find "tsl-artifact*" -type f -exec mv {} upload/ \;
+          rm -rf "tsl-artifact*"
+
