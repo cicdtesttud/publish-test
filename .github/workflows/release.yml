@@ -455,8 +455,8 @@ jobs:
           cd "${BREW_INST}"
           brew install --build-bottle ./libtsl-dev.rb
 
-          echo "LS ${{ env.OUT_PATH }}/brew"
-          ls -la ${{ env.OUT_PATH }}/brew
+          echo "LS ${{ env.OUT_PATH }}"
+          ls -la ${{ env.OUT_PATH }}
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
