@@ -415,7 +415,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
-      OUT_PATH: ./artifacts/brew
+      INSTALL_PATH: ./artifacts/brew
+      OUT_PATH: /tsl/brew
     container:
       image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-brew-builder-image.outputs.image_fqname }}:latest
     steps:
@@ -434,13 +435,14 @@ jobs:
       - name: Prepare installation
         run: |
           set -x
-          ABS_OUT_PATH=$(realpath ${OUT_PATH})
+          ABSOLUTE_OUT_PATH=$(realpath "${OUT_PATH}")
+          ABS_INSTALL_PATH=$(realpath "${INSTALL_PATH}")
           ARTIFACTS_PATH=$(realpath ./artifacts)
           REPOSITORY=$(realpath ./repository)
-          BREW_INST=${ABS_OUT_PATH}/brew
+          BREW_INST=${ABS_INSTALL_PATH}/brew
           mkdir -p ${BREW_INST}
           mkdir -p /tsl/brew
-          tar -czf "/tsl/brew/libtsl-dev.tar.gz" -C  "${ARTIFACTS_PATH}" $(find "${ARTIFACTS_PATH}" -type f -exec basename {} \;) --strip-components=1
+          tar -czf "${ABSOLUTE_OUT_PATH}/libtsl-dev.tar.gz" -C  "${ARTIFACTS_PATH}" $(find "${ARTIFACTS_PATH}" -type f -exec basename {} \;) --strip-components=1
           cp "${REPOSITORY}/.github/workflows/release/brew/libtsl-dev.rb" "${BREW_INST}/libtsl-dev.rb"
           SHA256=$(shasum -a 256 "${BREW_INST}/libtsl-dev.tar.gz" | cut -f 1 -d ' ')
           sed -i "s/$<< SHA256 >>/${SHA256}/g" "${BREW_INST}/libtsl-dev.rb"
@@ -455,8 +457,7 @@ jobs:
           cd "${BREW_INST}"
           brew install --build-bottle ./libtsl-dev.rb
 
-          echo "LS ${ABS_OUT_PATH}"
-          ls -la ${ABS_OUT_PATH}
+          mv ${BREW_INST}/libtsl-dev.rb ${ABSOLUTE_OUT_PATH}/libtsl-dev.rb
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
