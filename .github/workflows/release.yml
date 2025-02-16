@@ -439,7 +439,8 @@ jobs:
           REPOSITORY=$(realpath ./repository)
           BREW_INST=${ABS_OUT_PATH}/brew
           mkdir -p ${BREW_INST}
-          tar -czf "${BREW_INST}/libtsl-dev.tar.gz" -C  "${ARTIFACTS_PATH}" $(find "${ARTIFACTS_PATH}" -type f -exec basename {} \;) --strip-components=1
+          mkdir -p /tsl/brew
+          tar -czf "/tsl/brew/libtsl-dev.tar.gz" -C  "${ARTIFACTS_PATH}" $(find "${ARTIFACTS_PATH}" -type f -exec basename {} \;) --strip-components=1
           cp "${REPOSITORY}/.github/workflows/release/brew/libtsl-dev.rb" "${BREW_INST}/libtsl-dev.rb"
           SHA256=$(shasum -a 256 "${BREW_INST}/libtsl-dev.tar.gz" | cut -f 1 -d ' ')
           sed -i "s/$<< SHA256 >>/${SHA256}/g" "${BREW_INST}/libtsl-dev.rb"
@@ -449,6 +450,7 @@ jobs:
           sed -i "s/$<< VERSION_TAG >>/${TAG}/g" "${BREW_INST}/libtsl-dev.rb"
           echo "AFTER:"
           cat "${BREW_INST}/libtsl-dev.rb"
+
 
           cd "${BREW_INST}"
           brew install --build-bottle ./libtsl-dev.rb
