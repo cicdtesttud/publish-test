@@ -6,7 +6,7 @@ ENV TZ=Europe/Berlin \
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     bash build-essential binutils lintian debhelper dh-make devscripts \
-    g++ && \
+    g++ which && \
     mkdir -p /root/debbuild/tsl/DEBIAN && \
     mkdir -p /root/debbuild/tsl/usr/include/tsl/__hollistic && \
     mkdir -p /tsl
