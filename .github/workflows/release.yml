@@ -479,7 +479,7 @@ jobs:
       - name: Merge tsl flavors
         uses: actions/upload-artifact/merge@v4
         with:
-          name: libtsl-dev
+          name: tsl-artifacts
           pattern: tsl-artifact*
           separate-directories: true
           delete-merged: true
@@ -488,7 +488,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: libtsl-dev
+          name: tsl-artifacts
       - name: Tree
         run: |
           tree .
