@@ -475,7 +475,7 @@ jobs:
         uses: actions/upload-artifact/merge@v4
         with:
           name: tsl-release-${{ env.TAG }}
-          pattern: tsl-*
+          pattern: tsl-artifact*
           separate-directories: true
           delete-merged: true
           compression-level: 9
@@ -484,6 +484,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tsl-release-${{ env.TAG }}
-      - name: LS
+      - name: Tree
         run: |
           tree .
