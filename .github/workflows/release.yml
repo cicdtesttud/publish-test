@@ -444,7 +444,11 @@ jobs:
           SHA256=$(shasum -a 256 "${BREW_INST}/libtsl-dev.tar.gz" | cut -f 1 -d ' ')
           sed -i "s/\$<< SHA256 >>/${SHA256}/g" "${BREW_INST}/libtsl-dev.rb"
           echo "TAG IS ${TAG}"
+          echo "BEFORE:"
+          cat "${BREW_INST}/libtsl-dev.rb"
           sed -i "s/\$<< VERSION_TAG >>/${TAG}/g" "${BREW_INST}/libtsl-dev.rb"
+          echo "AFTER:"
+          cat "${BREW_INST}/libtsl-dev.rb"
 
           cd "${BREW_INST}"
           brew install --build-bottle ./libtsl-dev.rb
