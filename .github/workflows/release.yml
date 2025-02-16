@@ -471,11 +471,19 @@ jobs:
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
     steps:
+      - name: Merge tsl flavors
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: tsl-release-${{ env.TAG }}
+          pattern: tsl-*
+          separate-directories: true
+          delete-merged: true
+          compression-level: 9
+          retention-days: 1
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: tsl-artifact-*
-      
+          name: tsl-release-${{ env.TAG }}
       - name: LS
         run: |
-          ls -halt
+          tree .
