@@ -455,15 +455,15 @@ jobs:
           cd "${BREW_INST}"
           brew install --build-bottle ./libtsl-dev.rb
 
-          echo "LS ${{ env.OUT_PATH }}"
-          ls -la ${{ env.OUT_PATH }}
+          echo "LS ${ABS_OUT_PATH}"
+          ls -la ${ABS_OUT_PATH}
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: tsl-artifact-brew
-          path: ${{ env.OUT_PATH }}/brew
+          path: ${{ env.OUT_PATH }}
           compression-level: 9
           overwrite: true
           retention-days: 1
