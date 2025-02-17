@@ -61,7 +61,7 @@ prefilter() {
 calculate_overlap() {
   if [[ $(prefilter "$1") -ne 0 ]]; then
     do_log "[calculate_overlap]: prefilter failed"
-    echo "-1"
+    echo -1
     return
   fi
 
@@ -130,7 +130,7 @@ best_match_alt=$(find_best_alternative_match)
 read -r max_overlap best_idx <<< "$best_match"
 read -r max_overlap_alt best_idx_alt <<< "$best_match_alt"
 
-if ((max_overlap == -1)) && ((max_overlap_alt == -1)); then
+if ((max_overlap == 0)) && ((max_overlap_alt == 0)); then
   echo "No suitable flavor found, falling back to generic (scalar only). If you think that is a mistake, please contact the developers." > /dev/stderr
   echo "${generic_fallback}"
   exit 0
