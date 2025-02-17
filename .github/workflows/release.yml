@@ -502,7 +502,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tsl-artifacts
+          name: libtsl-dev
       - name: Tree
         run: |
           tree .
