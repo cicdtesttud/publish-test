@@ -171,16 +171,23 @@ jobs:
         run: |
           cd ${{ github.workspace }}/tsl/
           tar -czf ${{ github.workspace }}/release/tsl.tar.gz -C . $(find . -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n')
+          tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C . 
+
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tsl-artifact
-          path: ${{ github.workspace }}/release
+          name: libtsl-dev
+          path: ${{ github.workspace }}/release/libtsl-dev.tar.gz
           compression-level: 9
           overwrite: true
           retention-days: 1
+
+      - name: Break
+        run: |
+          echo "Break"
+          exit 1
   
   build-rpm-builder-image:
     name: RPM builder Image (build and push on demand)

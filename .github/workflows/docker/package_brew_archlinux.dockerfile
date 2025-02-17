@@ -26,6 +26,9 @@ RUN yay -Sy --noconfirm brew-git
 # Switch back to root
 USER root
 
-RUN rm /var/cache/pacman/pkg/*
+RUN rm /var/cache/pacman/pkg/* && \
+    mkdir -p /tsl && \
+    mkdir -p /tsl/tap && \
+    mkdir -p $(brew --repo /tsl/dev)/Formula
 
 WORKDIR /tsl

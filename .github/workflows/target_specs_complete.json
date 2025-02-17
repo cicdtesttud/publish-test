@@ -1,7 +1,7 @@
 {
   "generic": [
       {
-          "name": "unknown",
+          "name": "scalar",
           "flags": "NOSIMD-INVALID"
       }
   ],
