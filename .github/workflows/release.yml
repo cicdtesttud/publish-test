@@ -170,28 +170,19 @@ jobs:
 
       - name: Tarball tsl
         run: |
-          set -x
-          ls -halt ${{ github.workspace }}/tsl/
           tar -czf ${{ github.workspace }}/release_tmp/tsl.tar.gz -C ${{ github.workspace }}/tsl/ $(find ${{ github.workspace }}/tsl/ -maxdepth 1 -type d -name 'tsl-*' -exec basename {} \;) --strip-components=1
-          ls -halt ${{ github.workspace }}/release_tmp
           tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C ${{ github.workspace }}/release_tmp/ $(find ${{ github.workspace }}/release_tmp -type f -exec basename {} \;) --strip-components=1
-          ls -halt ${{ github.workspace }}/release
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: libtsl-devxxx
+          name: libtsl-dev
           path: ${{ github.workspace }}/release/libtsl-dev.tar.gz
           compression-level: 9
           overwrite: true
           retention-days: 1
 
-      - name: Break
-        run: |
-          echo "Break"
-          exit 1
-  
   build-rpm-builder-image:
     name: RPM builder Image (build and push on demand)
     uses: ./.github/workflows/build_and_push_dockerhub.yml
@@ -223,8 +214,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tsl-artifact
-          path: artifacts
-        
+          path: artifacts_tmp
+      
+      - name: Unpack artifacts
+        run: |
+          mkdir -p ./artifacts
+          tar -xf ./artifacts_tmp/libtsl-dev.tar.gz -C ./artifacts
+          ls -la ./artifacts
+
       - name: Prepare specs
         run: |
           if [[ "${TAG}" == *"-"* ]]; then
@@ -321,7 +318,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tsl-artifact
-          path: artifacts
+          path: artifacts_tmp
+      
+      - name: Unpack artifacts
+        run: |
+          mkdir -p ./artifacts
+          tar -xf ./artifacts_tmp/libtsl-dev.tar.gz -C ./artifacts
+          ls -la ./artifacts
         
       - name: Prepare specs
         run: |
@@ -424,6 +427,7 @@ jobs:
   package-brew:
     needs: [auto-tag, consolidate-tsl, build-brew-builder-image]
     runs-on: ubuntu-latest
+    if: ${{ 1 == 2 }}
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
       INSTALL_PATH: ./artifacts/brew
