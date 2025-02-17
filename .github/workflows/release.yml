@@ -509,12 +509,6 @@ jobs:
       - name: Consolidate
         run: |
           mkdir upload
-          ls -halt
-          ls tsl-artifact*
-          echo "CWD: $(pwd)"
-          echo "executing find"
-          find tsl-artifact* -type f
-          echo "executing find again"
           find tsl-artifact* -type f -exec mv {} upload/ \;
           rm -rf "tsl-artifact*"
 
@@ -527,3 +521,10 @@ jobs:
           compression-level: 9
           overwrite: true
           retention-days: 1
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            upload/*
+          tag_name: ${{ env.TAG }}
