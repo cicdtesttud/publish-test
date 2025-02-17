@@ -213,7 +213,7 @@ jobs:
       - name: Download tsl artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tsl-artifact
+          name: libtsl-dev
           path: artifacts_tmp
       
       - name: Unpack artifacts
@@ -317,7 +317,7 @@ jobs:
       - name: Download tsl artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tsl-artifact
+          name: libtsl-dev
           path: artifacts_tmp
       
       - name: Unpack artifacts
