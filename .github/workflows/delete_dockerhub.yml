@@ -1,8 +1,8 @@
 name: Remove Image from Dockerhub
 
 on:
-  # delete:
-  workflow_dispatch:
+  delete:
+  # workflow_dispatch:
 jobs:
   delete:
     runs-on: ubuntu-latest
