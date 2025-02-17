@@ -55,12 +55,13 @@ tmp_dir=$(mktemp -ud /tmp/libtsl-dev-XXXXXX)
 mkdir -p "${tmp_dir}"
 
 curl -L "https://github.com/cicdtesttud/publish-test/releases/latest/download/libtsl-dev.tar.gz" -o ${tmp_dir}/libtsl-dev.tar.gz
-tar -xzvf "${tmp_dir}/libtsl-dev.tar.gz" -C "${tmp_dir}"
+tar -xzf "${tmp_dir}/libtsl-dev.tar.gz" -C "${tmp_dir}"
 chmod 755 "${tmp_dir}"/*.sh
 supported_path=$("${tmp_dir}"/select_flavor.sh "${tmp_dir}")
 
 echo "Underlying hardware: ${supported_path}"
-tar -xzf "${tmp_dir}/tsl.tar.gz" -C "${out_path}" "${supported_path}" --strip-components=1
+tar -xzf "${tmp_dir}/tsl.tar.gz" -C "${tmp_dir}" "${supported_path}"
+mv "${tmp_dir}/${supported_path}"/* "${out_path}"
 
 rm -rf "${tmp_dir}"
 

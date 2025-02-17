@@ -10,30 +10,18 @@ jobs:
   generates-on-python:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
       - name: Fetch jobs from the previous workflow
         id: get-previous-job
         run: |
           set -x
-          echo "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs"
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Accept: application/vnd.github.v3+json" \
-               "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs"
-
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -H "Accept: application/vnd.github.v3+json" \
                "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs" \
-               | jq '.jobs[] | select(.name=="run-generation-aarch64") | .conclusion'
-
-      - name: Fail if job failed
-        if: ${{ steps.get-previous-job.outputs.result != 'success' }}
-        run: exit 1
-      - name: Generation successful
-        if: ${{ github.event.workflow_run.conclusion == 'success'}}
-        run: | 
-         exit 0
-      - name: Generation failed
-        if: ${{ github.event.workflow_run.conclusion != 'failure'}}
-        run: | 
-         exit 1
+               | python3 ${{ github.workspace }}/.github/workflows/utils/badge_creation.py --git-sha ${{ github.sha}}
 
       
