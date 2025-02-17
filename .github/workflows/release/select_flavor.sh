@@ -131,6 +131,7 @@ read -r max_overlap best_idx <<< "$best_match"
 read -r max_overlap_alt best_idx_alt <<< "$best_match_alt"
 
 if ((max_overlap == -1)) && ((max_overlap_alt == -1)); then
+  echo "No suitable flavor found, falling back to generic (scalar only). If you think that is a mistake, please contact the developers." > /dev/stderr
   echo "${generic_fallback}"
   exit 0
 fi

@@ -154,7 +154,6 @@ jobs:
           mkdir -p ${{ github.workspace }}/release_tmp
           cp ${{ github.workspace }}/repository/.github/workflows/release/select_flavor.sh ${{ github.workspace }}/release_tmp/select_flavor.sh
           cp ${{ github.workspace }}/repository/detect_flags.sh ${{ github.workspace }}/release_tmp/detect_flags.sh
-          cp ${{ github.workspace }}/repository/.github/workflows/release/tarball/setup_tsl.sh ${{ github.workspace }}/release_tmp/setup_tsl.sh
       
       - name: Substitute placeholders
         run: |
@@ -491,6 +490,7 @@ jobs:
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
     steps:
+      
       - name: Merge tsl flavors
         uses: actions/upload-artifact/merge@v4
         with:
@@ -500,19 +500,27 @@ jobs:
           delete-merged: true
           compression-level: 9
           retention-days: 1
+      
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: libtsl-dev
-      - name: Tree
-        run: |
-          tree .
+      
       - name: Consolidate
         run: |
           mkdir upload
           find tsl-artifact* -type f -exec mv {} upload/ \;
           rm -rf "tsl-artifact*"
 
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: repository
+  
+      - name: Copy setup_tsl.sh
+        run: |
+          cp ${{ github.workspace }}/repository/.github/workflows/release/tarball/setup_tsl.sh ${{ github.workspace }}/upload/setup_tsl.sh
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         if: always()
