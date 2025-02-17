@@ -19,7 +19,8 @@ if __name__ == "__main__":
           if step["name"] == "Generate tsl":
             if step["conclusion"] != "success":
               success = False
-              print(f"{name} failed", file=sys.stderr)
+            print(f"{name}: {step['conclusion']}", file=sys.stderr)
+          
   if success:
     print(0)
   else:

@@ -3,6 +3,8 @@
 
 
 ---
+[![Generation Staxxxtus](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_generation.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_generation.yml)
+
 [![Generates with py3.8-3.12](https://github.com/db-tu-dresden/TSL/actions/workflows/generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/generation-success.yml)
 [![Generates for x86](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-generation-success.yml)
 [![Generates for ARM](https://github.com/db-tu-dresden/TSL/actions/workflows/arm-generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/arm-generation-success.yml)
