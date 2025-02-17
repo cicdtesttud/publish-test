@@ -485,7 +485,7 @@ jobs:
           retention-days: 1
   
   create-release:
-    needs: [auto-tag, consolidate-tsl, package-rpm, package-deb, package-brew]
+    needs: [auto-tag, consolidate-tsl, package-rpm, package-deb]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
