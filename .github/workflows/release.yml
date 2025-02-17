@@ -172,9 +172,9 @@ jobs:
         run: |
           set -x
           ls -halt ${{ github.workspace }}/tsl/
-          tar -czf ${{ github.workspace }}/release_tmp/tsl.tar.gz -C ${{ github.workspace }}/tsl/ $(find ${{ github.workspace }}/tsl/ -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n') --strip-components=1
+          tar -czf ${{ github.workspace }}/release_tmp/tsl.tar.gz -C ${{ github.workspace }}/tsl/ $(find ${{ github.workspace }}/tsl/ -maxdepth 1 -type d -name 'tsl-*' -exec basename {} \;) --strip-components=1
           ls -halt ${{ github.workspace }}/release_tmp
-          tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C ${{ github.workspace }}/release_tmp/tsl.tar.gz $(find . -type f)
+          tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C ${{ github.workspace }}/release_tmp/ $(find ${{ github.workspace }}/release_tmp -type f -exec basename {} \;) --strip-components=1
           ls -halt ${{ github.workspace }}/release
 
       - name: Upload release artifacts
