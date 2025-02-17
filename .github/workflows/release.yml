@@ -6,17 +6,10 @@ on:
       - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'  
-  workflow_run:
-    workflows: ["Validate TSL"]
-    types:
-      - completed
-    branches:
-      - main
 
 jobs:
   define-targets:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       target-matrix: ${{ steps.parse-target-specs.outputs.target_matrix }}
     steps:
