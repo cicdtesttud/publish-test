@@ -152,8 +152,9 @@ jobs:
       - name: Copy relevant files
         run: |
           mkdir -p ${{ github.workspace }}/release
-          cp ${{ github.workspace }}/repository/.github/workflows/release/select_flavor.sh ${{ github.workspace }}/release/select_flavor.sh
-          cp ${{ github.workspace }}/repository/detect_flags.sh ${{ github.workspace }}/release/detect_flags.sh
+          mkdir -p ${{ github.workspace }}/release_tmp
+          cp ${{ github.workspace }}/repository/.github/workflows/release/select_flavor.sh ${{ github.workspace }}/release_tmp/select_flavor.sh
+          cp ${{ github.workspace }}/repository/detect_flags.sh ${{ github.workspace }}/release_tmp/detect_flags.sh
       
       - name: Substitute placeholders
         run: |
@@ -170,8 +171,9 @@ jobs:
       - name: Tarball tsl
         run: |
           cd ${{ github.workspace }}/tsl/
-          tar -czf ${{ github.workspace }}/release/tsl.tar.gz -C . $(find . -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n')
-          tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C . 
+
+          tar -czf ${{ github.workspace }}/release_tmp/tsl.tar.gz -C . $(find . -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n')
+          tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C ${{ github.workspace }}/release_tmp/tsl.tar.gz $(find . -type f)
 
 
       - name: Upload release artifacts
