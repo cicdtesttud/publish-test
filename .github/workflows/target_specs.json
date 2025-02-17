@@ -52,23 +52,43 @@
       },
       {
           "name": "Ice_Lake_Rocker_Lake",
-          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes"
+          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512_vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes",
+          "alternatives": {
+            "avx512_vpclmulqdq": "vpclmulqdq",
+            "avx512_gfni": "gfni",
+            "avx512_vaes": "vaes"
+          }
       },
       {
           "name": "Tiger_Lake",
-          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes avx512_vp2intersect"
+          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512_vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes avx512_vp2intersect",
+          "alternatives": {
+            "avx512_vpclmulqdq": "vpclmulqdq",
+            "avx512_gfni": "gfni",
+            "avx512_vaes": "vaes"
+          }
       },
       {
           "name": "Zen_4",
-          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_bf16 avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes"
+          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512_vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_bf16 avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes",
+          "alternatives": {
+            "avx512_vpclmulqdq": "vpclmulqdq",
+            "avx512_gfni": "gfni",
+            "avx512_vaes": "vaes"
+          }
       },
       {
           "name": "Sapphire_Rapids",
-          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_bf16 avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes avx512_fp16"
+          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512_vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_bf16 avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes avx512_fp16",
+          "alternatives": {
+            "avx512_vpclmulqdq": "vpclmulqdq",
+            "avx512_gfni": "gfni",
+            "avx512_vaes": "vaes"
+          }
       },
       {
           "name": "Zen_5",
-          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_bf16 avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes avx512_vp2intersect",
+          "flags": "sse sse2 ssse3 sse4_1 sse4_2 avx avx2 avx512f avx512cd avx512vl avx512dq avx512bw avx512_vpopcntdq avx512ifma avx512vbmi avx512_vnni avx512_bf16 avx512_vbmi2 avx512_bitalg avx512_vpclmulqdq avx512_gfni avx512_vaes avx512_vp2intersect",
           "alternatives": {
             "avx512_vpclmulqdq": "vpclmulqdq",
             "avx512_gfni": "gfni",
