@@ -170,11 +170,12 @@ jobs:
 
       - name: Tarball tsl
         run: |
-          cd ${{ github.workspace }}/tsl/
-
-          tar -czf ${{ github.workspace }}/release_tmp/tsl.tar.gz -C . $(find . -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n')
+          set -x
+          ls -halt ${{ github.workspace }}/tsl/
+          tar -czf ${{ github.workspace }}/release_tmp/tsl.tar.gz -C ${{ github.workspace }}/tsl/ $(find . -maxdepth 1 -type d -name 'tsl-*' -printf '%P\n')
+          ls -halt ${{ github.workspace }}/release_tmp
           tar -czf ${{ github.workspace }}/release/libtsl-dev.tar.gz -C ${{ github.workspace }}/release_tmp/tsl.tar.gz $(find . -type f)
-
+          ls -halt ${{ github.workspace }}/release
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
