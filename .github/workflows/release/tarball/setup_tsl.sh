@@ -38,7 +38,7 @@ else
         ;;
       --help)
         print_help
-        ;;ss
+        ;;
       *)
         echo "Unknown option: $1"
         exit 1
