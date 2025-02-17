@@ -154,6 +154,7 @@ jobs:
           mkdir -p ${{ github.workspace }}/release_tmp
           cp ${{ github.workspace }}/repository/.github/workflows/release/select_flavor.sh ${{ github.workspace }}/release_tmp/select_flavor.sh
           cp ${{ github.workspace }}/repository/detect_flags.sh ${{ github.workspace }}/release_tmp/detect_flags.sh
+          cp ${{ github.workspace }}/repository/.github/workflows/release/tarball/setup_tsl.sh ${{ github.workspace }}/release_tmp/setup_tsl.sh
       
       - name: Substitute placeholders
         run: |
