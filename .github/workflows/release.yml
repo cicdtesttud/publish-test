@@ -1,11 +1,11 @@
 name: Create release
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  # push:
+  #   branches:
+  #     - main
+  #   tags:
+  #     - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
 
 jobs:
@@ -412,9 +412,11 @@ jobs:
           overwrite: true
           retention-days: 1
   
+  # Disabled, since brew seems to not work with the current setup (transient tarball)
   build-brew-builder-image:
     name: HomeBrew builder Image (build and push on demand)
     uses: ./.github/workflows/build_and_push_dockerhub.yml
+    if: ${{ 1 == 2 }} 
     with:
       context: .
       path: .github/workflows/docker/package_brew_archlinux.dockerfile
@@ -424,6 +426,7 @@ jobs:
       dockerhub_username: ${{ vars.DOCKERHUB_USERNAME }}
       dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
   
+  # Disabled, since brew seems to not work with the current setup (transient tarball)
   package-brew:
     needs: [auto-tag, consolidate-tsl, build-brew-builder-image]
     runs-on: ubuntu-latest
