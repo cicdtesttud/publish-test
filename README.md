@@ -10,7 +10,6 @@
 [![deb package](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_deb.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_deb.yml)
 [![rpm package](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_rpm.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_rpm.yml)
 
-[![Packaged](https://github.com/db-tu-dresden/TSL/actions/workflows/publish-latest.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/publish-latest.yml)
 [![Publish GH-Page](https://github.com/db-tu-dresden/TSL/actions/workflows/upload_indexhtml.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/upload_indexhtml.yml)
 <!-- 
 ## **Current Status**

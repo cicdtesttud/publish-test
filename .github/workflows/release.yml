@@ -2,11 +2,18 @@ name: Create release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-
+  workflow_run:
+    workflows: [Validate TSL]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: false
+        default: 'v0.0.1-rc0'
 jobs:
   define-targets:
     runs-on: ubuntu-latest
