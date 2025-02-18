@@ -6,14 +6,9 @@
 [![Generation py3.[8-12]](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_generation.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_generation.yml)
 [![x86 tests](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_x86.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_x86.yml)
 [![aarch64 tests](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_aarch64.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_aarch64.yml)
+[![tarball package](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_tarball.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_tarball.yml)
 [![deb package](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_deb.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_deb.yml)
-
-[![Generates with py3.8-3.12](https://github.com/db-tu-dresden/TSL/actions/workflows/generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/generation-success.yml)
-[![Generates for x86](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-generation-success.yml)
-[![Generates for ARM](https://github.com/db-tu-dresden/TSL/actions/workflows/arm-generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/arm-generation-success.yml)
-
-[![Builds on x86](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-build-and-test-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-build-and-test-success.yml)
-[![Builds on ARM](https://github.com/db-tu-dresden/TSL/actions/workflows/arm-build-and-test-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/arm-build-and-test-success.yml)
+[![rpm package](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_rpm.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_rpm.yml)
 
 [![Packaged](https://github.com/db-tu-dresden/TSL/actions/workflows/publish-latest.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/publish-latest.yml)
 [![Publish GH-Page](https://github.com/db-tu-dresden/TSL/actions/workflows/upload_indexhtml.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/upload_indexhtml.yml)
