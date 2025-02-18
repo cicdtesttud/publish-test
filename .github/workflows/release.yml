@@ -41,7 +41,7 @@ jobs:
 
       - name: Auto-Tag
         id: push-tag
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: ${{ github.event_name == 'workflow_run' }}
         run: |
           git fetch --tags
           LATEST_TAG=$(git tag -l --sort=-v:refname "v*" | head -n 1)
