@@ -34,6 +34,9 @@ if __name__ == "__main__":
     if job_git_sha == args.git_sha:
       name = job.get("name", "<unknown>")
       if name.startswith(job_name_prefix):
+        if job['conclusion'] != "success":
+          success = False
+          print(f"{name}: {job['conclusion']}", file=sys.stderr)
         for step in job["steps"]: 
           if step["name"] in step_name:
             if step["conclusion"] != "success":

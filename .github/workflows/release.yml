@@ -133,6 +133,7 @@ jobs:
           compression-level: 9
   
   prepare-tsl-tarball:
+    if: always()
     needs: [run-generation]
     runs-on: ubuntu-latest
     steps:
