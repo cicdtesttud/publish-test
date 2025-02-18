@@ -161,17 +161,16 @@ jobs:
       #   if: ${{ github.event_name == 'workflow_run' }}
       #   uses: dawidd6/action-download-artifact@v8
       #   with:
-      #     path: ${{ github.workspace }}/tsl
+      #     workflow: ${{ github.event.workflow_run.id }}
       #     name: tsl-artifact-tarball
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
-      #     run-id: ${{ github.event.workflow_run.id }}
+      #     path: ${{ github.workspace }}/tsl
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_run' }}
         with:
           name: tsl-artifact-tarball
-          path: ${{ github.workspace }}/release/libtsl-dev.tar.gz
+          path: ${{ github.workspace }}/tsl/*
           compression-level: 9
           overwrite: true
           retention-days: 1    
