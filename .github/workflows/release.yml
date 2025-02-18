@@ -154,7 +154,17 @@ jobs:
         with:
           path: ${{ github.workspace }}/tsl
           name: tsl-artifact-tarball
-          run-id: ${{ github.event.workflow_run.workflow_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      
+      # - name: Download all tsl-flavours
+      #   if: ${{ github.event_name == 'workflow_run' }}
+      #   uses: dawidd6/action-download-artifact@v8
+      #   with:
+      #     path: ${{ github.workspace }}/tsl
+      #     name: tsl-artifact-tarball
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     run-id: ${{ github.event.workflow_run.id }}
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
