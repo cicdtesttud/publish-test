@@ -18,6 +18,7 @@ jobs:
   define-targets:
     runs-on: ubuntu-latest
     outputs:
+      target-matrix: ${{ steps.parse-target-specs.outputs.target_matrix }}
       x86-flags-matrix: ${{ steps.parse-target-specs.outputs.x86_flags_matrix }}
       x86-flags-compiler-matrix: ${{ steps.parse-target-specs.outputs.x86_flags_compiler_matrix }}
       aarch64-flags-matrix: ${{ steps.parse-target-specs.outputs.aarch64_flags_matrix }}
@@ -41,6 +42,7 @@ jobs:
             . + {compiler: "aarch64-linux-gnu-g++"}, 
             . + {compiler: "clang++"}
           ]) | .aarch64 |= flatten | {include: .aarch64}' .github/workflows/target_specs.json -c)" >> $GITHUB_OUTPUT
+          echo "target_matrix=$(jq -c '{include: ([keys[] as $k | .[$k][] | (. + { arch: $k })])}' .github/workflows/target_specs.json -c)" >> $GITHUB_OUTPUT
   
   build-generation-image:
     name: Generation Image (build and push on demand)
@@ -146,15 +148,15 @@ jobs:
           if [ "${{ needs.run-validation-tsl.result }}" != "success" ]; then
             exit 1
           fi
-          
-  run-generation-x86:
+    
+  run-generation:
     needs: [build-generation-image, define-targets]
     runs-on: ubuntu-latest
     container:
       image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.define-targets.outputs.x86-flags-matrix) }}
+      matrix: ${{ fromJson(needs.define-targets.outputs.target-matrix) }}
     steps:
       - name: Checkout 
         uses: actions/checkout@v4
@@ -164,50 +166,23 @@ jobs:
       - name: Generate tsl
         run: |
           python3 main.py --targets ${{ matrix.flags }} -o docker_out/${{ matrix.name }}
-          
+
       - name: Upload tsl
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tsl-x86-${{ matrix.name }}
-          path: ./docker_out/${{ matrix.name }}
-          compression-level: 9
-  
-  run-generation-aarch64:
-    needs: [build-generation-image, define-targets]
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.define-targets.outputs.aarch64-flags-matrix) }}
-    steps:
-      - name: Checkout 
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-      
-      - name: Generate tsl
-        run: |
-          python3 main.py --targets ${{ matrix.flags }} -o docker_out/${{ matrix.name }}
-          
-      - name: Upload tsl
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: tsl-aarch64-${{ matrix.name }}
+          name: tsl-${{ matrix.arch }}-${{ matrix.name }}
           path: ./docker_out/${{ matrix.name }}
           compression-level: 9
   
   consolidate-tsl-generate:
-    needs: [run-generation-x86, run-generation-aarch64]
+    needs: [run-generation]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Merge tsl flavors
         uses: actions/upload-artifact/merge@v4
         with:
-          name: generated-tsl
+          name: tsl-artifact-tarball
           pattern: tsl-*
           separate-directories: true
           delete-merged: true
@@ -215,9 +190,8 @@ jobs:
 
       - name: Break on error
         run: |
-          echo "Generate x86 status: ${{ needs.run-generation-x86.result }}"
-          echo "Generate aarch64 status: ${{ needs.run-generation-aarch64.result }}"
-          if [ "${{ needs.run-generation-x86.result }}" != "success" ] || [ "${{ needs.run-generation-aarch64.result }}" != "success" ]; then
+          echo "Generation status: ${{ needs.run-generation.result }}"
+          if [ "${{ needs.run-generation.result }}" != "success" ]; then
             exit 1
           fi
 
@@ -231,7 +205,7 @@ jobs:
       - name: Download consolidated tsl
         uses: actions/download-artifact@v4
         with:
-          name: generated-tsl
+          name: tsl-artifact-tarball
           path: .
 
       - name: Create Build Directories
@@ -317,7 +291,7 @@ jobs:
       - name: Download consolidated tsl
         uses: actions/download-artifact@v4
         with:
-          name: generated-tsl
+          name: tsl-artifact-tarball
           path: .
 
       - name: Create Build Directories

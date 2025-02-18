@@ -1,13 +1,13 @@
 name: Create release
 
 on:
-  # push:
-  #   tags:
-  #     - 'v[0-9]+.[0-9]+.[0-9]+'
-  # workflow_run:
-  #   workflows: [Validate TSL]
-  #   types: [completed]
-  #   branches: [main]
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_run:
+    workflows: [Validate TSL]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -16,6 +16,7 @@ on:
         default: 'v0.0.1-rc0'
 jobs:
   define-targets:
+    if: ${{ github.event_name != 'workflow_run' }}
     runs-on: ubuntu-latest
     outputs:
       target-matrix: ${{ steps.parse-target-specs.outputs.target_matrix }}
@@ -93,6 +94,7 @@ jobs:
           fi
   
   build-generation-image:
+    if: ${{ github.event_name != 'workflow_run' }}
     name: Generation Image (build and push on demand)
     uses: ./.github/workflows/build_and_push_dockerhub.yml
     with:
@@ -107,6 +109,7 @@ jobs:
     
   run-generation:
     needs: [build-generation-image, define-targets]
+    if: ${{ github.event_name != 'workflow_run' }}
     runs-on: ubuntu-latest
     container:
       image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
@@ -128,18 +131,13 @@ jobs:
           name: tsl-${{ matrix.arch }}-${{ matrix.name }}
           path: ./docker_out/${{ matrix.name }}
           compression-level: 9
-    
-  consolidate-tsl:
+  
+  prepare-tsl-tarball:
     needs: [run-generation]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          path: repository
-
       - name: Merge tsl flavors
+        if: ${{ github.event_name != 'workflow_run' }}
         uses: actions/upload-artifact/merge@v4
         with:
           name: tsl-artifact-tarball
@@ -148,8 +146,36 @@ jobs:
           delete-merged: true
           compression-level: 9
           retention-days: 1
-
+      
       - name: Download all tsl-flavours
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ github.workspace }}/tsl
+          name: tsl-artifact-tarball
+          run-id: ${{ github.event.workflow_run.id }}
+      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'workflow_run' }}
+        with:
+          name: tsl-artifact-tarball
+          path: ${{ github.workspace }}/release/libtsl-dev.tar.gz
+          compression-level: 9
+          overwrite: true
+          retention-days: 1    
+  
+  prepare-scripts:
+    needs: [prepare-tsl-tarball]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: repository
+
+      - name: Download tsl-artifact
         uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/tsl
@@ -202,7 +228,7 @@ jobs:
       dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
 
   package-rpm:
-    needs: [auto-tag, consolidate-tsl, build-rpm-builder-image]
+    needs: [auto-tag, prepare-scripts, build-rpm-builder-image]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
@@ -306,7 +332,7 @@ jobs:
       dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
   
   package-deb:
-    needs: [auto-tag, consolidate-tsl, build-deb-builder-image]
+    needs: [auto-tag, prepare-scripts, build-deb-builder-image]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ needs.auto-tag.outputs.tag }}
@@ -434,7 +460,7 @@ jobs:
   
   # Disabled, since brew seems to not work with the current setup (transient tarball)
   package-brew:
-    needs: [auto-tag, consolidate-tsl, build-brew-builder-image]
+    needs: [auto-tag, prepare-scripts, build-brew-builder-image]
     runs-on: ubuntu-latest
     if: ${{ 1 == 2 }}
     env:
@@ -494,7 +520,7 @@ jobs:
           retention-days: 1
   
   create-release:
-    needs: [auto-tag, consolidate-tsl, package-rpm, package-deb]
+    needs: [auto-tag, prepare-scripts, package-rpm, package-deb]
     runs-on: ubuntu-latest
     permissions: write-all
     env:
