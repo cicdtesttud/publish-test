@@ -1,8 +1,8 @@
-name: Generation py3.[8-12]
+name: deb package
 
 on:
   workflow_run:
-    workflows: [Validate TSL]
+    workflows: [Create release]
     types: [completed]
     branches: [main]
 
@@ -21,4 +21,4 @@ jobs:
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -H "Accept: application/vnd.github.v3+json" \
                "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs?per_page=100" \
-               | python3 ${{ github.workspace }}/.github/workflows/utils/badge_creation.py --git-sha ${{ github.sha}} generation
+               | python3 ${{ github.workspace }}/.github/workflows/utils/badge_testing.py --git-sha ${{ github.sha}} testing-aarch64
