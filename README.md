@@ -4,6 +4,9 @@
 
 ---
 [![Generation py3.[8-12]](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_generation.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_generation.yml)
+[![x86 tests](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_x86.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_x86.yml)
+[![aarch64 tests](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_aarch64.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_testing_aarch64.yml)
+[![deb package](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_deb.yml/badge.svg)](https://github.com/cicdtesttud/publish-test/actions/workflows/badge_package_deb.yml)
 
 [![Generates with py3.8-3.12](https://github.com/db-tu-dresden/TSL/actions/workflows/generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/generation-success.yml)
 [![Generates for x86](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-generation-success.yml/badge.svg)](https://github.com/db-tu-dresden/TSL/actions/workflows/x86-generation-success.yml)

@@ -5,18 +5,27 @@ import sys
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Generate outcome for the generation step')
   parser.add_argument('--git-sha', help="Git SHA", required=True, type=str, dest='git_sha')
-  parser.add_argument('step', choices=['generation', 'testing-x86', 'testing-aarch64'])
+  parser.add_argument('step', choices=['generation', 'testing-x86', 'testing-aarch64', 'package-deb', 'package-rpm', 'release-tarball'])
   args = parser.parse_args()
   
   if args.step == "generation":
     job_name_prefix = "run-generation-"
-    step_name = "Generate tsl"
+    step_name = ["Generate tsl"]
   elif args.step == "testing-x86":
     job_name_prefix = "run-compile-and-test-x86"
-    step_name = "Run Tests"
+    step_name = ["Run Tests"]
   elif args.step == "testing-aarch64":
     job_name_prefix = "run-compile-and-test-aarch64"
-    step_name = "Run Tests"
+    step_name = ["Run Tests"]
+  elif args.step == "package-deb":
+    job_name_prefix = "package-deb"
+    step_name = ["Run dpkb-buildpackage", "Test install", "Check install directory", "Compile test programm", "Test uninstall", "Upload release artifacts"]
+  elif args.step == "package-rpm":
+    job_name_prefix = "package-rpm"
+    step_name = ["Run rpmbuild", "Test install", "Check install directory", "Compile test programm", "Test uninstall", "Upload release artifacts"]
+  elif args.step == "release-tarball":
+    job_name_prefix = "create-release"
+    step_name = ["Copy setup_tsl.sh", "Create Release"]
   data_in = sys.stdin.read()  
   data = json.loads(data_in)
   success = True
@@ -26,10 +35,10 @@ if __name__ == "__main__":
       name = job.get("name", "<unknown>")
       if name.startswith(job_name_prefix):
         for step in job["steps"]: 
-          if step["name"] == step_name:
+          if step["name"] in step_name:
             if step["conclusion"] != "success":
               success = False
-            print(f"{name}: {step['conclusion']}", file=sys.stderr)
+            print(f"{name} ({step['name']}): {step['conclusion']}", file=sys.stderr)
           
   if success:
     exit(0)
