@@ -94,10 +94,10 @@ jobs:
   run-validation-tsl:
     needs: [build-generation-image]
     runs-on: ubuntu-latest
-    # continue-on-error: true
     container:
       image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
     strategy:
+      fail-fast: false
       matrix: 
         python_version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
@@ -125,19 +125,19 @@ jobs:
           path: ./log
           compression-level: 9
   
-  # consolidate-validation-logs:
-  #   needs: [run-validation-tsl]
-  #   runs-on: ubuntu-latest
-  #   if: always()
-  #   steps:
-  #     - name: Merge logs
-  #       uses: actions/upload-artifact/merge@v4
-  #       with:
-  #         name: validation-logs
-  #         pattern: validation-*
-  #         separate-directories: true
-  #         delete-merged: true
-  #         compression-level: 9
+  consolidate-validation-logs:
+    needs: [run-validation-tsl]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Merge logs
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: validation-logs
+          pattern: validation-*
+          separate-directories: true
+          delete-merged: true
+          compression-level: 9
           
   # run-generation-x86:
   #   needs: [build-generation-image, define-targets]
