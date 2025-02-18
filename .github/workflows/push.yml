@@ -111,9 +111,10 @@ jobs:
 
       - name: Run TSL validation
         run: |
-          .github/workflows/utils/validate_tsl333.sh "${{ matrix.python_version }}" log
+          .github/workflows/utils/validate_tsl.sh "${{ matrix.python_version }}" log
       
       - name: Run linter
+        if: always()
         run: |
           yamllint --no-warnings -d relaxed ./primitive_data > log/yamllint.log 2>&1
 
@@ -138,314 +139,311 @@ jobs:
           separate-directories: true
           delete-merged: true
           compression-level: 9
+
+      - name: Break on error
+        run: |
+          echo "Generate x86 status: ${{ needs.run-validation-tsl.result }}"
+          if [ "${{ needs.run-validation-tsl.result }}" != "success" ]; then
+            exit 1
+          fi
           
-  # run-generation-x86:
-  #   needs: [build-generation-image, define-targets]
-  #   runs-on: ubuntu-latest
-  #   continue-on-error: true
-  #   container:
-  #     image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.define-targets.outputs.x86-flags-matrix) }}
-  #   steps:
-  #     - name: Checkout 
-  #       uses: actions/checkout@v4
-  #       with:
-  #         ref: ${{ github.ref }}
+  run-generation-x86:
+    needs: [build-generation-image, define-targets]
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.define-targets.outputs.x86-flags-matrix) }}
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       
-  #     - name: Generate tsl
-  #       run: |
-  #         python3 main.py --targets ${{ matrix.flags }} -o docker_out/${{ matrix.name }}
+      - name: Generate tsl
+        run: |
+          python3 main.py --targets ${{ matrix.flags }} -o docker_out/${{ matrix.name }}
           
-  #     - name: Upload tsl
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: tsl-x86-${{ matrix.name }}
-  #         path: ./docker_out/${{ matrix.name }}
-  #         compression-level: 9
+      - name: Upload tsl
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsl-x86-${{ matrix.name }}
+          path: ./docker_out/${{ matrix.name }}
+          compression-level: 9
   
-  # run-generation-aarch64:
-  #   needs: [build-generation-image, define-targets]
-  #   runs-on: ubuntu-latest
-  #   continue-on-error: true
-  #   container:
-  #     image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.define-targets.outputs.aarch64-flags-matrix) }}
-  #   steps:
-  #     - name: Checkout 
-  #       uses: actions/checkout@v4
-  #       with:
-  #         ref: ${{ github.ref }}
+  run-generation-aarch64:
+    needs: [build-generation-image, define-targets]
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-generation-image.outputs.image_fqname }}:latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.define-targets.outputs.aarch64-flags-matrix) }}
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       
-  #     - name: Generate tsl
-  #       run: |
-  #         python3 main.py --targets ${{ matrix.flags }} -o docker_out/${{ matrix.name }}
+      - name: Generate tsl
+        run: |
+          python3 main.py --targets ${{ matrix.flags }} -o docker_out/${{ matrix.name }}
           
-  #     - name: Upload tsl
-  #       if: always()
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: tsl-aarch64-${{ matrix.name }}
-  #         path: ./docker_out/${{ matrix.name }}
-  #         compression-level: 9
+      - name: Upload tsl
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsl-aarch64-${{ matrix.name }}
+          path: ./docker_out/${{ matrix.name }}
+          compression-level: 9
   
-  # consolidate-tsl-generate:
-  #   needs: [run-generation-x86, run-generation-aarch64]
-  #   runs-on: ubuntu-latest
-  #   if: always()
-  #   steps:
-  #     - name: Merge tsl flavors
-  #       uses: actions/upload-artifact/merge@v4
-  #       with:
-  #         name: generated-tsl
-  #         pattern: tsl-*
-  #         separate-directories: true
-  #         delete-merged: true
-  #         compression-level: 9
+  consolidate-tsl-generate:
+    needs: [run-generation-x86, run-generation-aarch64]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Merge tsl flavors
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: generated-tsl
+          pattern: tsl-*
+          separate-directories: true
+          delete-merged: true
+          compression-level: 9
 
-  #     - name: Break on error
-  #       run: |
-  #         echo "Generate x86 status: ${{ needs.run-generation-x86.result }}"
-  #         echo "Generate aarch64 status: ${{ needs.run-generation-aarch64.result }}"
-  #         if [ "${{ needs.run-generation-x86.result }}" != "success" ] || [ "${{ needs.run-generation-aarch64.result }}" != "success" ]; then
-  #           exit 1
-  #         fi
+      - name: Break on error
+        run: |
+          echo "Generate x86 status: ${{ needs.run-generation-x86.result }}"
+          echo "Generate aarch64 status: ${{ needs.run-generation-aarch64.result }}"
+          if [ "${{ needs.run-generation-x86.result }}" != "success" ] || [ "${{ needs.run-generation-aarch64.result }}" != "success" ]; then
+            exit 1
+          fi
 
-  # run-compile-and-test-x86:
-  #   needs: [define-targets, consolidate-tsl-generate, build-compile-image, build-x86-emulation-image]
-  #   runs-on: ubuntu-latest
-  #   continue-on-error: true
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.define-targets.outputs.x86-flags-compiler-matrix) }}
-  #   steps:
-  #     - name: Download consolidated tsl
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: generated-tsl
-  #         path: .
+  run-compile-and-test-x86:
+    needs: [define-targets, consolidate-tsl-generate, build-compile-image, build-x86-emulation-image]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.define-targets.outputs.x86-flags-compiler-matrix) }}
+    steps:
+      - name: Download consolidated tsl
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-tsl
+          path: .
 
-  #     - name: Create Build Directories
-  #       run: |
-  #         mkdir -p build
-  #         mkdir -p log
+      - name: Create Build Directories
+        run: |
+          mkdir -p build
+          mkdir -p log
 
-  #     - name: Run CMake
-  #       continue-on-error: true
-  #       id: cmake
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #             "cmake \
-  #               -S tsl-x86-${{ matrix.name }} \
-  #               -B build/tsl-x86-${{ matrix.name }}-${{ matrix.compiler }} \
-  #               -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
-  #               > log/cmake.log 2>&1"
-  #         result=$?
-  #         echo "CMake result: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::CMake {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "cmake failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run CMake
+        id: cmake
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+              "cmake \
+                -S tsl-x86-${{ matrix.name }} \
+                -B build/tsl-x86-${{ matrix.name }}-${{ matrix.compiler }} \
+                -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+                > log/cmake.log 2>&1"
+          result=$?
+          echo "CMake result: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::CMake {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "cmake failed" >> log/failures.txt
+            exit 1
+          fi
 
-  #     - name: Run Make
-  #       continue-on-error: true
-  #       if: ${{ steps.cmake.outcome == 'success' }}
-  #       id: make
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #             "cmake \
-  #               --build build/tsl-x86-${{ matrix.name }}-${{ matrix.compiler }} \
-  #               -j \
-  #               > log/make.log 2>&1"
-  #         result=$?
-  #         echo "Make result: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::Make {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "make failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run Make
+        id: make
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+              "cmake \
+                --build build/tsl-x86-${{ matrix.name }}-${{ matrix.compiler }} \
+                -j \
+                > log/make.log 2>&1"
+          result=$?
+          echo "Make result: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::Make {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "make failed" >> log/failures.txt
+            exit 1
+          fi
 
-  #     - name: Run Tests
-  #       continue-on-error: true
-  #       id: run-tests
-  #       if: ${{ steps.make.outcome == 'success' }}
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-x86-emulation-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #           "intel-sde -future -- \
-  #             build/tsl-x86-${{ matrix.name }}-${{ matrix.compiler }}/src/test/tsl_test \
-  #             > log/test.log 2>&1"
-  #         result=$?
-  #         echo "Tests returned: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::Run {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "tests failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run Tests
+        id: run-tests
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-x86-emulation-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+            "intel-sde -future -- \
+              build/tsl-x86-${{ matrix.name }}-${{ matrix.compiler }}/src/test/tsl_test \
+              > log/test.log 2>&1"
+          result=$?
+          echo "Tests returned: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::Run {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "tests failed" >> log/failures.txt
+            exit 1
+          fi
   
-  #     - name: Upload Build logs
-  #       uses: actions/upload-artifact@v4
-  #       if: always()
-  #       with:
-  #         name: compile-and-test-x86-${{ matrix.name }}-${{ matrix.compiler }}
-  #         path: ./log
-  #         compression-level: 9
+      - name: Upload Build logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compile-and-test-x86-${{ matrix.name }}-${{ matrix.compiler }}
+          path: ./log
+          compression-level: 9
 
-  # run-compile-and-test-aarch64:
-  #   needs: [define-targets, consolidate-tsl-generate, build-compile-image, build-aarch64-emulation-image]
-  #   runs-on: ubuntu-latest
-  #   continue-on-error: true
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.define-targets.outputs.aarch64-flags-compiler-matrix) }}
-  #   steps:
-  #     - name: Download consolidated tsl
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: generated-tsl
-  #         path: .
+  run-compile-and-test-aarch64:
+    needs: [define-targets, consolidate-tsl-generate, build-compile-image, build-aarch64-emulation-image]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.define-targets.outputs.aarch64-flags-compiler-matrix) }}
+    steps:
+      - name: Download consolidated tsl
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-tsl
+          path: .
 
-  #     - name: Create Build Directories
-  #       run: |
-  #         mkdir -p build
-  #         mkdir -p log
+      - name: Create Build Directories
+        run: |
+          mkdir -p build
+          mkdir -p log
 
-  #     - name: Run CMake
-  #       continue-on-error: true
-  #       if: ${{ matrix.compiler == 'clang++' }}
-  #       id: cmake-clang
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #             "cmake \
-  #               -S tsl-aarch64-${{ matrix.name }} \
-  #               -B build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }} \
-  #               -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
-  #               -DEXTERN_COMPILE_OPTIONS=\"--target=aarch64-linux-gnu;-static\" \
-  #               -DRUNS_IN_EMULATOR=True \
-  #               > log/cmake.log 2>&1"
-  #         result=$?
-  #         echo "CMake result: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::CMake {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "cmake failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run CMake
+        if: ${{ matrix.compiler == 'clang++' }}
+        id: cmake-clang
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+              "cmake \
+                -S tsl-aarch64-${{ matrix.name }} \
+                -B build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }} \
+                -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+                -DEXTERN_COMPILE_OPTIONS=\"--target=aarch64-linux-gnu;-static\" \
+                -DRUNS_IN_EMULATOR=True \
+                > log/cmake.log 2>&1"
+          result=$?
+          echo "CMake result: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::CMake {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "cmake failed" >> log/failures.txt
+            exit 1
+          fi
 
-  #     - name: Run CMake
-  #       continue-on-error: true
-  #       if: ${{ matrix.compiler == 'aarch64-linux-gnu-g++' }}
-  #       id: cmake-gcc
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #             "cmake \
-  #               -S tsl-aarch64-${{ matrix.name }} \
-  #               -B build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }} \
-  #               -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
-  #               -DEXTERN_COMPILE_OPTIONS=\"-static\" \
-  #               -DRUNS_IN_EMULATOR=True \
-  #               > log/cmake.log 2>&1"
-  #         result=$?
-  #         echo "CMake result: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::CMake {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "cmake failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run CMake
+        if: ${{ matrix.compiler == 'aarch64-linux-gnu-g++' }}
+        id: cmake-gcc
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+              "cmake \
+                -S tsl-aarch64-${{ matrix.name }} \
+                -B build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }} \
+                -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+                -DEXTERN_COMPILE_OPTIONS=\"-static\" \
+                -DRUNS_IN_EMULATOR=True \
+                > log/cmake.log 2>&1"
+          result=$?
+          echo "CMake result: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::CMake {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "cmake failed" >> log/failures.txt
+            exit 1
+          fi
 
-  #     - name: Run Make
-  #       continue-on-error: true
-  #       if: ${{ ((matrix.compiler == 'clang++') && (steps.cmake-clang.outcome == 'success')) || ((matrix.compiler == 'aarch64-linux-gnu-g++') && (steps.cmake-gcc.outcome == 'success')) }}
-  #       id: make
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #             "cmake \
-  #               --build build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }} \
-  #               -j \
-  #               > log/make.log 2>&1"
-  #         result=$?
-  #         echo "Make result: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::Make {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "make failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run Make
+        id: make
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-compile-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+              "cmake \
+                --build build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }} \
+                -j \
+                > log/make.log 2>&1"
+          result=$?
+          echo "Make result: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::Make {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "make failed" >> log/failures.txt
+            exit 1
+          fi
 
-  #     - name: Run Tests
-  #       continue-on-error: true
-  #       id: run-tests
-  #       if: ${{ steps.make.outcome == 'success' }}
-  #       run: |
-  #         set +e
-  #         docker run \
-  #           -v .:/tsl \
-  #           ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-aarch64-emulation-image.outputs.image_fqname }}:latest \
-  #           /bin/bash -c \
-  #           "qemu-arm64 \
-  #             build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }}/src/test/tsl_test \
-  #             > log/test.log 2>&1"
-  #         result=$?
-  #         echo "Tests returned: $result"
-  #         if [ ${result} -ne 0 ]; then
-  #           echo "::warning::Run {{ matrix.name }} with ${{ matrix.compiler }} failed"
-  #           echo "tests failed" >> log/failures.txt
-  #           exit 1
-  #         fi
+      - name: Run Tests
+        id: run-tests
+        run: |
+          set +e
+          docker run \
+            -v .:/tsl \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ needs.build-aarch64-emulation-image.outputs.image_fqname }}:latest \
+            /bin/bash -c \
+            "qemu-arm64 \
+              build/tsl-aarch64-${{ matrix.name }}-${{ matrix.compiler }}/src/test/tsl_test \
+              > log/test.log 2>&1"
+          result=$?
+          echo "Tests returned: $result"
+          if [ ${result} -ne 0 ]; then
+            echo "::warning::Run {{ matrix.name }} with ${{ matrix.compiler }} failed"
+            echo "tests failed" >> log/failures.txt
+            exit 1
+          fi
   
-  #     - name: Upload Build logs
-  #       uses: actions/upload-artifact@v4
-  #       if: always()
-  #       with:
-  #         name: compile-and-test-aarch64-${{ matrix.name }}-${{ matrix.compiler }}
-  #         path: ./log
-  #         compression-level: 9
+      - name: Upload Build logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compile-and-test-aarch64-${{ matrix.name }}-${{ matrix.compiler }}
+          path: ./log
+          compression-level: 9
 
-  # consolidate-build-and-run-logs:
-  #   needs: [run-compile-and-test-x86, run-compile-and-test-aarch64]
-  #   runs-on: ubuntu-latest
-  #   if: always()
-  #   steps:
-  #     - name: Merge logs
-  #       uses: actions/upload-artifact/merge@v4
-  #       with:
-  #         name: compile-and-test-logs
-  #         pattern: compile-and-test-*
-  #         separate-directories: true
-  #         delete-merged: true
-  #         compression-level: 9
+  consolidate-build-and-run-logs:
+    needs: [run-compile-and-test-x86, run-compile-and-test-aarch64]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Merge logs
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: compile-and-test-logs
+          pattern: compile-and-test-*
+          separate-directories: true
+          delete-merged: true
+          compression-level: 9
       
-  #     - name : Download failure log
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: compile-and-test-logs
-  #         path: ${{ runner.temp }}
+      - name : Download failure log
+        uses: actions/download-artifact@v4
+        with:
+          name: compile-and-test-logs
+          path: ${{ runner.temp }}
           
-  #     - name: Check for errors
-  #       run: |
-  #         if find ${{ runner.temp }} -type f -name failures.txt | grep -q .; then
-  #           echo "Errors found in build and test logs"
-  #           exit 1
-  #         fi
+      - name: Break on error
+        run: |
+          echo "Build/Test x86 status: ${{ needs.run-compile-and-test-x86.result }}"
+          echo "Build/Test aarch64 status: ${{ needs.run-compile-and-test-aarch64.result }}"
+          if [ "${{ needs.run-compile-and-test-x86.result }}" != "success" ] || [ "${{ needs.run-compile-and-test-aarch64.result }}" != "success" ]; then
+            exit 1
+          fi
