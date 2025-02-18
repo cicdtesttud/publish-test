@@ -154,7 +154,7 @@ jobs:
         with:
           path: ${{ github.workspace }}/tsl
           name: tsl-artifact-tarball
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.workflow_id }}
       
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
